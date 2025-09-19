@@ -178,6 +178,77 @@ else:
                         text = re.sub(r'x_2', 'x₂', text)   # x_2 becomes x₂
                         text = re.sub(r'x_1', 'x₁', text)   # x_1 becomes x₁
                         
+                        # Fix squared symbols for common statistics terms (more specific patterns)
+                        text = re.sub(r'σ\^2', 'σ²', text)  # σ^2 becomes σ²
+                        text = re.sub(r'σ\s+2\b', 'σ²', text)  # σ 2 becomes σ² (with word boundary)
+                        text = re.sub(r'sigma\^2', 'σ²', text)  # sigma^2 becomes σ²
+                        text = re.sub(r'sigma\s+2\b', 'σ²', text)  # sigma 2 becomes σ² (with word boundary)
+                        
+                        # Fix "standard deviation squared" specifically
+                        text = re.sub(r'standard\s+deviation\s+squared', 'σ²', text)  # standard deviation squared
+                        text = re.sub(r'standard\s+deviation\s*\^2', 'σ²', text)  # standard deviation^2
+                        text = re.sub(r'standard\s+deviation\s*2', 'σ²', text)  # standard deviation 2
+                        text = re.sub(r'std\s+dev\s+squared', 'σ²', text)  # std dev squared
+                        text = re.sub(r'std\s+dev\s*\^2', 'σ²', text)  # std dev^2
+                        text = re.sub(r'std\s+dev\s*2', 'σ²', text)  # std dev 2
+                        
+                        # Fix variance (which is standard deviation squared)
+                        text = re.sub(r'variance\s*\^2', 'σ²', text)  # variance^2
+                        text = re.sub(r'variance\s*2', 'σ²', text)  # variance 2
+                        text = re.sub(r'var\s*\^2', 'σ²', text)  # var^2
+                        text = re.sub(r'var\s*2', 'σ²', text)  # var 2
+                        
+                        # Fix population variance
+                        text = re.sub(r'population\s+variance', 'σ²', text)  # population variance
+                        text = re.sub(r'pop\s+var', 'σ²', text)  # pop var
+                        text = re.sub(r'population\s+std\s+dev\s+squared', 'σ²', text)  # population std dev squared
+                        text = re.sub(r'μ\^2', 'μ²', text)  # μ^2 becomes μ²
+                        text = re.sub(r'μ\s+2\b', 'μ²', text)  # μ 2 becomes μ² (with word boundary)
+                        text = re.sub(r'mu\^2', 'μ²', text)  # mu^2 becomes μ²
+                        text = re.sub(r'mu\s+2\b', 'μ²', text)  # mu 2 becomes μ² (with word boundary)
+                        
+                        # Fix common OCR misreadings of squared symbols
+                        text = re.sub(r'σ\s*\(2\)', 'σ²', text)  # σ (2) becomes σ²
+                        text = re.sub(r'sigma\s*\(2\)', 'σ²', text)  # sigma (2) becomes σ²
+                        text = re.sub(r'σ\s*\[2\]', 'σ²', text)  # σ [2] becomes σ²
+                        text = re.sub(r'sigma\s*\[2\]', 'σ²', text)  # sigma [2] becomes σ²
+                        
+                        # Fix squared symbols for other common variables (more specific patterns)
+                        text = re.sub(r's\^2', 's²', text)  # s^2 becomes s²
+                        text = re.sub(r's\s+2\b', 's²', text)  # s 2 becomes s² (with word boundary)
+                        text = re.sub(r'n\^2', 'n²', text)  # n^2 becomes n²
+                        text = re.sub(r'n\s+2\b', 'n²', text)  # n 2 becomes n² (with word boundary)
+                        text = re.sub(r'X\^2', 'X²', text)  # X^2 becomes X²
+                        text = re.sub(r'X\s+2\b', 'X²', text)  # X 2 becomes X² (with word boundary)
+                        text = re.sub(r'Y\^2', 'Y²', text)  # Y^2 becomes Y²
+                        text = re.sub(r'Y\s+2\b', 'Y²', text)  # Y 2 becomes Y² (with word boundary)
+                        
+                        # Fix cubed symbols for common statistics terms (more specific patterns)
+                        text = re.sub(r'σ\^3', 'σ³', text)  # σ^3 becomes σ³
+                        text = re.sub(r'σ\s+3\b', 'σ³', text)  # σ 3 becomes σ³ (with word boundary)
+                        text = re.sub(r'sigma\^3', 'σ³', text)  # sigma^3 becomes σ³
+                        text = re.sub(r'sigma\s+3\b', 'σ³', text)  # sigma 3 becomes σ³ (with word boundary)
+                        text = re.sub(r'μ\^3', 'μ³', text)  # μ^3 becomes μ³
+                        text = re.sub(r'μ\s+3\b', 'μ³', text)  # μ 3 becomes μ³ (with word boundary)
+                        text = re.sub(r'mu\^3', 'μ³', text)  # mu^3 becomes μ³
+                        text = re.sub(r'mu\s+3\b', 'μ³', text)  # mu 3 becomes μ³ (with word boundary)
+                        
+                        # Fix common OCR misreadings of cubed symbols
+                        text = re.sub(r'σ\s*\(3\)', 'σ³', text)  # σ (3) becomes σ³
+                        text = re.sub(r'sigma\s*\(3\)', 'σ³', text)  # sigma (3) becomes σ³
+                        text = re.sub(r'σ\s*\[3\]', 'σ³', text)  # σ [3] becomes σ³
+                        text = re.sub(r'sigma\s*\[3\]', 'σ³', text)  # sigma [3] becomes σ³
+                        
+                        # Fix cubed symbols for other common variables (more specific patterns)
+                        text = re.sub(r's\^3', 's³', text)  # s^3 becomes s³
+                        text = re.sub(r's\s+3\b', 's³', text)  # s 3 becomes s³ (with word boundary)
+                        text = re.sub(r'n\^3', 'n³', text)  # n^3 becomes n³
+                        text = re.sub(r'n\s+3\b', 'n³', text)  # n 3 becomes n³ (with word boundary)
+                        text = re.sub(r'X\^3', 'X³', text)  # X^3 becomes X³
+                        text = re.sub(r'X\s+3\b', 'X³', text)  # X 3 becomes X³ (with word boundary)
+                        text = re.sub(r'Y\^3', 'Y³', text)  # Y^3 becomes Y³
+                        text = re.sub(r'Y\s+3\b', 'Y³', text)  # Y 3 becomes Y³ (with word boundary)
+                        
                         # Fix common variable subscripts and OCR misreadings
                         text = re.sub(r'w_i', 'wᵢ', text)    # w_i becomes wᵢ
                         text = re.sub(r'x_i', 'xᵢ', text)    # x_i becomes xᵢ
@@ -187,6 +258,14 @@ else:
                         
                         # Fix common numbering issues (double periods)
                         text = re.sub(r'(\d+)\.(\d+)\.', r'\1.\2', text)  # Fix double periods in numbering
+                        
+                        # Fix incorrect superscripts that shouldn't be there (general patterns)
+                        text = re.sub(r'(\w+)²(\s)', r'\1 2\2', text)  # Fix word² followed by space
+                        text = re.sub(r'(\w+)³(\s)', r'\1 3\2', text)  # Fix word³ followed by space
+                        text = re.sub(r'(\w+)²(\d)', r'\1 2\2', text)  # Fix word² followed by digit
+                        text = re.sub(r'(\w+)³(\d)', r'\1 3\2', text)  # Fix word³ followed by digit
+                        text = re.sub(r'(\w+)²(\.)', r'\1 2\2', text)  # Fix word² followed by period
+                        text = re.sub(r'(\w+)³(\.)', r'\1 3\2', text)  # Fix word³ followed by period
                         
                         # Clean up formatting
                         text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)  # Remove excessive line breaks

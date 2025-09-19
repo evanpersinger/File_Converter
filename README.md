@@ -7,7 +7,7 @@ Simple scripts to convert files between different formats.
 ### xlsx_csv.py
 Converts Excel (.xlsx) to CSV (.csv).
 
-### pdf_md.pyu
+### pdf_md.py
 Converts pdf (.pdf) to markdown (.md).
 
 **Usage:**
@@ -51,6 +51,10 @@ converter/
 ```
 
 ## How to Use
-1. Put your files in the `input` folder
-2. Run the appropriate script
-3. Find converted files in the `output` folder
+1. **Create the required folders** (if they don't exist):
+   ```bash
+   mkdir input output
+   ```
+2. Put your files in the `input` folder
+3. Run the appropriate script
+4. Find converted files in the `output` folder
