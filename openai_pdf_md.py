@@ -1,56 +1,59 @@
 # openai_pdf_md.py
-# openai converts pdf's to markdown files using vision parser
-# this script requires an api key for openai and vision parser
-# the api key is stored in the .env file
+# Converts PDF files to Markdown using OpenAI's Vision API
+# Requires OpenAI API key stored in .env file
+# Uses vision-parse library for high-quality PDF to markdown conversion
 
 
-from vision_parse import VisionParser # convert pdf to markdown
-from dotenv import load_dotenv
-import os 
+from vision_parse import VisionParser  # Library for PDF to markdown conversion
+from dotenv import load_dotenv          # Load environment variables from .env file
+import os                               # File system operations 
 
 load_dotenv()
 
 
-input_dir  = "input"
-output_dir = "output"
+# Define input and output directories
+input_dir  = "input"   # Folder containing PDF files to convert
+output_dir = "output"  # Folder where converted markdown files will be saved
 
 
 
 # Initialize parser with OpenAI model
 parser = VisionParser(
-    model_name="gpt-4o-mini",
-    api_key= os.environ['OPENAI_API_KEY'], 
-    temperature=0.7,
-    top_p=0.4,
-    image_mode="url",
-    detailed_extraction=False,
-    enable_concurrency=True,
+    model_name="gpt-4o-mini",           # OpenAI model for processing
+    api_key=os.environ['OPENAI_API_KEY'], # API key from environment
+    temperature=0.7,                    # Controls randomness (0-1)
+    top_p=0.4,                          # Controls diversity of responses
+    image_mode="url",                   # Process images via URL
+    detailed_extraction=False,          # Basic extraction mode
+    enable_concurrency=True,            # Allow parallel processing
 )
 
 
 
-# loop through all PDFs in Files_to_Convert
+# Process all PDF files in the input directory
 for pdf_name in os.listdir(input_dir):
+    # Skip files that aren't PDFs
     if not pdf_name.lower().endswith(".pdf"):
         continue
 
-    # build file-system path to PDF folder
+    # Create full path to the PDF file
     pdf_path = os.path.join(input_dir, pdf_name)
 
-    # convert pdf to markdown and join
+    # Convert PDF to markdown (returns list of pages)
     pages = parser.convert_pdf(pdf_path)
-    full_md = "\n\n".join(pages) # join all 
+    # Join all pages into a single markdown document
+    full_md = "\n\n".join(pages)
 
-    # build output path
-    base    = os.path.splitext(pdf_name)[0]
-    out_md  = f"{base}.md"
+    # Create output filename (replace .pdf with .md)
+    base = os.path.splitext(pdf_name)[0]  # Remove .pdf extension
+    out_md = f"{base}.md"                 # Add .md extension
     out_path = os.path.join(output_dir, out_md)
 
-    # opens a file and writes your markdown text into it
-    with open(out_path,"w") as f: # the w means "write"
+    # Write markdown content to output file
+    with open(out_path, "w") as f:
         f.write(full_md)
 
-    # confirmation message 
-    print(f"Wrote combined markdown to {out_path}")
+    # confirmation message
+    print(f"Converted {pdf_name} -> {out_md}")
 
 

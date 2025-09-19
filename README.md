@@ -8,23 +8,7 @@ Simple scripts to convert files between different formats.
 Converts Excel (.xlsx) to CSV (.csv).
 
 ### pdf_md.py
-Converts pdf (.pdf) to markdown (.md).
-
-**Usage:**
-```bash
-python xlsx_csv.py
-```
-
-**Requirements:**
-- pandas
-
-**Setup:**
-```bash
-pip install pandas
-```
-
-### pdf_md.py
-Converts PDF files to Markdown format.
+Converts PDF files to Markdown format using basic text extraction.
 
 **Usage:**
 ```bash
@@ -40,14 +24,38 @@ python pdf_md.py
 pip install pypdf markdownify
 ```
 
+### openai_pdf_md.py
+Converts PDF files to Markdown using OpenAI's Vision API for high-quality conversion.
+
+**Usage:**
+```bash
+python openai_pdf_md.py
+```
+
+**Requirements:**
+- vision-parse
+- python-dotenv
+- OpenAI API key
+
+**Setup:**
+```bash
+pip install vision-parse python-dotenv
+```
+
+**Configuration:**
+1. Create a `.env` file in the project root
+2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
+
 ## Folder Structure
 ```
 converter/
-├── input/          # Put your source files here
-├── output/         # Converted files will appear here
-├── xlsx_csv.py     # Excel to CSV converter
-├── pdf_md.py       # PDF to Markdown converter
-└── requirements.txt
+├── input/              # Put your source files here
+├── output/             # Converted files will appear here
+├── xlsx_csv.py         # Excel to CSV converter
+├── pdf_md.py           # PDF to Markdown converter (basic)
+├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
+├── requirements.txt
+└── .env                # Store your OpenAI API key here
 ```
 
 ## How to Use
