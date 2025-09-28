@@ -46,6 +46,37 @@ pip install vision-parse python-dotenv
 1. Create a `.env` file in the project root
 2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
 
+### ss_text.py
+Converts screenshots and images to text using OCR (Optical Character Recognition).
+
+**Usage:**
+```bash
+python ss_text.py
+```
+
+**Requirements:**
+- pytesseract
+- pillow
+- tesseract OCR (system installation)
+
+**Setup:**
+```bash
+# Install Tesseract OCR on macOS
+brew install tesseract
+
+# Python packages are already in requirements.txt
+pip install pytesseract pillow
+```
+
+**Supported formats:**
+- PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP
+
+**How it works:**
+1. Automatically processes ALL images in the `input/` folder
+2. Extracts text using OCR
+3. Saves text files to the `output/` folder
+4. Shows summary of successful/failed conversions
+
 ## Folder Structure
 ```
 converter/
@@ -54,6 +85,7 @@ converter/
 ├── xlsx_csv.py         # Excel to CSV converter
 ├── pdf_md.py           # PDF to Markdown converter (basic)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
+├── ss_text.py          # Screenshot to text converter (OCR)
 ├── requirements.txt
 └── .env                # Store your OpenAI API key here
 ```
