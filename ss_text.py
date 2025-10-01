@@ -92,12 +92,58 @@ def main():
             print(f"✅ Success: {output_filename}")
         else:
             failed += 1
-            print(f"❌ Failed: {image_filename}")
+            print(f"Failed: {image_filename}")
     
-    print(f"\n📊 Summary:")
-    print(f"  ✅ Successful: {successful}")
-    print(f"  ❌ Failed: {failed}")
-    print(f"  📁 Output folder: {output_folder}")
+    print(f"\n Summary:")
+    print(f"  Successful: {successful}")
+    print(f"  Failed: {failed}")
+    print(f"  Output folder: {output_folder}")
+    
+    # Combine all extracted text files into one
+    combine_all_text_files(output_folder)
+
+def combine_all_text_files(output_folder):
+    """
+    Combine all extracted text files into one single file
+    Args:
+        output_folder (str): Path to the output folder containing text files
+    """
+    try:
+        # Get all extracted text files
+        text_files = []
+        for file in os.listdir(output_folder):
+            if file.endswith('_extracted_text.txt'):
+                text_files.append(file)
+        
+        if not text_files:
+            print("No extracted text files found to combine")
+            return
+        
+        # Sort files to ensure consistent order
+        text_files.sort()
+        
+        # Create combined file
+        combined_filename = "all_extracted_text_combined.txt"
+        combined_path = os.path.join(output_folder, combined_filename)
+        
+        print(f"\nCombining {len(text_files)} text files into: {combined_filename}")
+        
+        with open(combined_path, 'w', encoding='utf-8') as combined_file:
+            for i, text_file in enumerate(text_files):
+                text_file_path = os.path.join(output_folder, text_file)
+                
+                # Read and write the content
+                with open(text_file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    combined_file.write(content)
+                
+                if i < len(text_files) - 1:  # Add newline between files (except last)
+                    combined_file.write("\n")
+        
+        print(f"✅ Combined text saved to: {combined_path}")
+        
+    except Exception as e:
+        print(f"Error combining text files: {e}")
 
 if __name__ == "__main__":
     main()
