@@ -14,3 +14,8 @@ venv/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# input/output folders
+input/
+output/
+old_files/
