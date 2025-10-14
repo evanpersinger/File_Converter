@@ -77,6 +77,33 @@ pip install pytesseract pillow
 3. Saves text files to the `output/` folder
 4. Shows summary of successful/failed conversions
 
+### ipynb_pdf.py
+Converts Jupyter notebooks (.ipynb) to PDF files.
+
+**Usage:**
+```bash
+python ipynb_pdf.py notebook_name.ipynb
+python ipynb_pdf.py notebook_name.ipynb custom_output.pdf
+```
+
+**Requirements:**
+- jupyter
+- nbconvert
+- LaTeX (for PDF generation)
+
+**Setup:**
+```bash
+pip install jupyter nbconvert
+# Install LaTeX on macOS
+brew install --cask mactex
+```
+
+**How it works:**
+1. Put your `.ipynb` file in the `input/` folder
+2. Run the script with the notebook filename
+3. PDF will be saved to the `output/` folder
+4. Supports custom output filenames
+
 ## Folder Structure
 ```
 converter/
@@ -86,6 +113,7 @@ converter/
 ├── pdf_md.py           # PDF to Markdown converter (basic)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
 ├── ss_text.py          # Screenshot to text converter (OCR)
+├── ipynb_pdf.py        # Jupyter notebook to PDF converter
 ├── requirements.txt
 └── .env                # Store your OpenAI API key here
 ```

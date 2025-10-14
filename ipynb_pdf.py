@@ -1,0 +1,91 @@
+# ipynb_to_pdf.py
+# Convert a Jupyter notebook to a PDF file using nbconvert
+
+import os
+import sys
+import subprocess
+from pathlib import Path
+
+
+def convert_notebook_to_pdf(notebook_path, output_path=None):
+    """
+    Convert a Jupyter notebook to PDF
+    
+    Args:
+        notebook_path (str): Path to the .ipynb file (relative to input folder)
+        output_path (str, optional): Output PDF filename. If None, uses same name as notebook
+    
+    Returns:
+        bool: True if conversion successful, False otherwise
+    """
+    # Set up input and output directories
+    input_dir = Path("input")
+    output_dir = Path("output")
+    
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(exist_ok=True)
+    
+    # Build full input path
+    if os.path.isabs(notebook_path):
+        full_input_path = notebook_path
+    else:
+        full_input_path = input_dir / notebook_path
+    
+    # Check if notebook file exists
+    if not os.path.exists(full_input_path):
+        print(f"Error: Notebook file '{full_input_path}' not found")
+        return False
+    
+    # Set output path if not provided
+    if output_path is None:
+        notebook_name = Path(notebook_path).stem
+        output_path = f"{notebook_name}.pdf"
+    
+    # Build full output path
+    full_output_path = output_dir / output_path
+    
+    try:
+        # Use nbconvert to convert notebook to PDF
+        cmd = [
+            "jupyter", "nbconvert", 
+            "--to", "pdf",
+            "--output", output_path,
+            "--output-dir", str(output_dir),
+            str(full_input_path)
+        ]
+        
+        print(f"Converting '{full_input_path}' to '{full_output_path}'...")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"Successfully converted to '{full_output_path}'")
+            return True
+        else:
+            print(f"Conversion failed: {result.stderr}")
+            return False
+            
+    except FileNotFoundError:
+        print("Error: jupyter nbconvert not found. Make sure Jupyter is installed.")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return False
+
+
+def main():
+    """Main function to handle command line usage"""
+    if len(sys.argv) < 2:
+        print("Usage: python ipynb_pdf.py <notebook_file> [output_file]")
+        print("Example: python ipynb_pdf.py my_notebook.ipynb")
+        print("Example: python ipynb_pdf.py my_notebook.ipynb output.pdf")
+        print("Note: Notebook files should be in the 'input' folder")
+        return
+    
+    notebook_file = sys.argv[1]
+    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+    
+    convert_notebook_to_pdf(notebook_file, output_file)
+
+
+if __name__ == "__main__":
+    main()
