@@ -82,6 +82,10 @@ Converts Jupyter notebooks (.ipynb) to PDF files.
 
 **Usage:**
 ```bash
+# Option A: run with no args – auto-detect a single notebook in input/
+python ipynb_pdf.py
+
+# Option B: specify a file (filename only; script prepends input/)
 python ipynb_pdf.py notebook_name.ipynb
 python ipynb_pdf.py notebook_name.ipynb custom_output.pdf
 ```
@@ -100,9 +104,18 @@ brew install --cask mactex
 
 **How it works:**
 1. Put your `.ipynb` file in the `input/` folder
-2. Run the script with the notebook filename
-3. PDF will be saved to the `output/` folder
-4. Supports custom output filenames
+2. If you run without arguments and there is exactly one notebook in `input/`,
+   the script prints only the file name (e.g., `HW2.ipynb`) and converts it.
+3. If multiple notebooks are present, it lists them and asks you to specify one.
+4. If none are present, it shows usage instructions.
+5. PDF is saved to the `output/` folder. Custom output filenames are supported.
+
+**Alternative (no LaTeX):**
+If you prefer not to install LaTeX, you can export using the browser-based PDF:
+```bash
+pip install pyppeteer
+jupyter nbconvert --to webpdf --output output/NAME.pdf input/NAME.ipynb
+```
 
 ## Folder Structure
 ```

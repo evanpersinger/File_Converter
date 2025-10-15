@@ -9,8 +9,6 @@ from pathlib import Path
 
 def convert_notebook_to_pdf(notebook_path, output_path=None):
     """
-    Convert a Jupyter notebook to PDF
-    
     Args:
         notebook_path (str): Path to the .ipynb file (relative to input folder)
         output_path (str, optional): Output PDF filename. If None, uses same name as notebook
@@ -75,14 +73,29 @@ def convert_notebook_to_pdf(notebook_path, output_path=None):
 def main():
     """Main function to handle command line usage"""
     if len(sys.argv) < 2:
-        print("Usage: python ipynb_pdf.py <notebook_file> [output_file]")
-        print("Example: python ipynb_pdf.py my_notebook.ipynb")
-        print("Example: python ipynb_pdf.py my_notebook.ipynb output.pdf")
-        print("Note: Notebook files should be in the 'input' folder")
-        return
-    
-    notebook_file = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+        # Auto-detect a single .ipynb in input/ if no arg provided
+        input_dir = Path("input")
+        notebooks = sorted(p.name for p in input_dir.glob("*.ipynb"))
+        if not notebooks:
+            print("No .ipynb files found in input folder")
+            print("Usage: python ipynb_pdf.py <notebook_file> [output_file]")
+            print("Example: python ipynb_pdf.py my_notebook.ipynb")
+            print("Example: python ipynb_pdf.py my_notebook.ipynb output.pdf")
+            return
+        if len(notebooks) > 1:
+            print("Multiple .ipynb files found in 'input/':")
+            for name in notebooks:
+                print(f" - {name}")
+            print("Please specify which one to convert:")
+            print("  python ipynb_pdf.py <notebook_file> [output_file]")
+            return
+        # Exactly one notebook found; use it
+        notebook_file = notebooks[0]
+        output_file = None
+        print(notebook_file)
+    else:
+        notebook_file = sys.argv[1]
+        output_file = sys.argv[2] if len(sys.argv) > 2 else None
     
     convert_notebook_to_pdf(notebook_file, output_file)
 
