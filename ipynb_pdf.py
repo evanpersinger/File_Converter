@@ -73,26 +73,23 @@ def convert_notebook_to_pdf(notebook_path, output_path=None):
 def main():
     """Main function to handle command line usage"""
     if len(sys.argv) < 2:
-        # Auto-detect a single .ipynb in input/ if no arg provided
+        # No args: convert all .ipynb files in input/
         input_dir = Path("input")
-        notebooks = sorted(p.name for p in input_dir.glob("*.ipynb"))
+        notebooks = sorted(p for p in input_dir.glob("*.ipynb"))
         if not notebooks:
             print("No .ipynb files found in input folder")
             print("Usage: python ipynb_pdf.py <notebook_file> [output_file]")
             print("Example: python ipynb_pdf.py my_notebook.ipynb")
             print("Example: python ipynb_pdf.py my_notebook.ipynb output.pdf")
             return
-        if len(notebooks) > 1:
-            print("Multiple .ipynb files found in 'input/':")
-            for name in notebooks:
-                print(f" - {name}")
-            print("Please specify which one to convert:")
-            print("  python ipynb_pdf.py <notebook_file> [output_file]")
-            return
-        # Exactly one notebook found; use it
-        notebook_file = notebooks[0]
-        output_file = None
-        print(notebook_file)
+        any_failed = False
+        for nb_path in notebooks:
+            ok = convert_notebook_to_pdf(nb_path.name, None)
+            if not ok:
+                any_failed = True
+        if any_failed:
+            sys.exit(1)
+        return
     else:
         notebook_file = sys.argv[1]
         output_file = sys.argv[2] if len(sys.argv) > 2 else None
