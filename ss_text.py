@@ -43,14 +43,19 @@ def convert_image_to_text(image_path, output_path=None):
 
 def main():
     """Main function to process all images in input folder"""
-    input_folder = "input"
-    output_folder = "output"
+    # Resolve folders relative to this script for consistency
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    input_folder = os.path.join(script_dir, "input")
+    output_folder = os.path.join(script_dir, "output")
     
     # Check if input folder exists
     if not os.path.exists(input_folder):
         print(f"Error: '{input_folder}' folder not found")
         sys.exit(1)
     
+    # Ensure output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
     # Get all image files from input folder
     image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp'}
     image_files = []

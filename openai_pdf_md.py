@@ -7,13 +7,18 @@
 from vision_parse import VisionParser  # Library for PDF to markdown conversion
 from dotenv import load_dotenv          # Load environment variables from .env file
 import os                               # File system operations 
+from pathlib import Path
 
 load_dotenv()
 
 
-# Define input and output directories
-input_dir  = "input"   # Folder containing PDF files to convert
-output_dir = "output"  # Folder where converted markdown files will be saved
+# Define input and output directories relative to this script
+script_dir = Path(__file__).resolve().parent
+input_dir  = script_dir / "input"   # Folder containing PDF files to convert
+output_dir = script_dir / "output"  # Folder where converted markdown files will be saved
+
+# Ensure output directory exists
+output_dir.mkdir(parents=True, exist_ok=True)
 
 
 
