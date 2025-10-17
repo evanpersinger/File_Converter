@@ -8,21 +8,22 @@ Simple scripts to convert files between different formats.
 Converts Excel (.xlsx) to CSV (.csv).
 
 ### pdf_md.py
-Converts PDF files to Markdown format using basic text extraction.
+Converts PDF files to Markdown format using text extraction, with optional OCR fallback.
 
 **Usage:**
 ```bash
 python pdf_md.py
 ```
 
-**Requirements:**
-- pypdf
-- markdownify
+**Python packages (versions from requirements.txt):**
+- pypdf==6.0.0
+- pdfplumber==0.11.7
+- pdfminer-six==20250506
+- pytesseract==0.3.13
+- pillow==11.3.0
 
-**Setup:**
-```bash
-pip install pypdf markdownify
-```
+**System requirements (optional for OCR):**
+- Tesseract OCR (macOS: `brew install tesseract`)
 
 ### openai_pdf_md.py
 Converts PDF files to Markdown using OpenAI's Vision API for high-quality conversion.
@@ -32,10 +33,14 @@ Converts PDF files to Markdown using OpenAI's Vision API for high-quality conver
 python openai_pdf_md.py
 ```
 
-**Requirements:**
-- vision-parse
-- python-dotenv
-- OpenAI API key
+**Python packages (versions from requirements.txt):**
+- vision-parse==0.1.13
+- python-dotenv==1.1.1
+- openai==1.75.0 (transitive dependency via vision-parse)
+
+**Configuration:**
+1. Create a `.env` file in the project root
+2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
 
 **Setup:**
 ```bash
@@ -54,10 +59,12 @@ Converts screenshots and images to text using OCR (Optical Character Recognition
 python ss_text.py
 ```
 
-**Requirements:**
-- pytesseract
-- pillow
-- tesseract OCR (system installation)
+**Python packages (versions from requirements.txt):**
+- pytesseract==0.3.13
+- pillow==11.3.0
+
+**System requirements:**
+- Tesseract OCR (macOS: `brew install tesseract`)
 
 **Setup:**
 ```bash
@@ -90,10 +97,16 @@ python ipynb_pdf.py notebook_name.ipynb
 python ipynb_pdf.py notebook_name.ipynb custom_output.pdf
 ```
 
-**Requirements:**
-- jupyter
-- nbconvert
-- LaTeX (for PDF generation)
+**Python packages (versions from requirements.txt):**
+- jupyter==1.1.1
+- nbconvert==7.16.6
+- nbclient==0.10.2
+- nbformat==5.10.4
+- jinja2==3.1.6
+- traitlets==5.14.3
+
+**System requirements:**
+- LaTeX distribution for PDF export (macOS: `brew install --cask mactex`)
 
 **Setup:**
 ```bash
@@ -117,16 +130,49 @@ pip install pyppeteer
 jupyter nbconvert --to webpdf --output output/NAME.pdf input/NAME.ipynb
 ```
 
+### md_pdf.py
+Converts Markdown (.md) files to PDF using Pandoc.
+
+**Usage:**
+```bash
+python md_pdf.py file.md [output.pdf]
+```
+
+**Python packages (versions from requirements.txt):**
+- nbconvert==7.16.6 (only for pandocfilters; not strictly required to run pandoc)
+- pandocfilters==1.5.1 (installed, but conversion is done by the pandoc CLI)
+
+**System requirements:**
+- Pandoc (macOS: `brew install pandoc`)
+- LaTeX engine (XeLaTeX recommended) for PDF generation (macOS: `brew install --cask mactex`)
+
+### html_pdf.py
+Converts HTML files to PDF. Prefers `wkhtmltopdf`; falls back to `pandoc` if unavailable.
+
+**Usage:**
+```bash
+python html_pdf.py file.html [output.pdf]
+```
+
+**Python packages:**
+- None beyond the standard library
+
+**System requirements:**
+- wkhtmltopdf (recommended for best HTML rendering) — macOS: `brew install wkhtmltopdf`
+- or Pandoc with LaTeX engine (fallback) — macOS: `brew install pandoc` and `brew install --cask mactex`
+
 ## Folder Structure
 ```
 converter/
 ├── input/              # Put your source files here
 ├── output/             # Converted files will appear here
 ├── xlsx_csv.py         # Excel to CSV converter
-├── pdf_md.py           # PDF to Markdown converter (basic)
+├── pdf_md.py           # PDF to Markdown converter (basic + OCR)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
 ├── ss_text.py          # Screenshot to text converter (OCR)
 ├── ipynb_pdf.py        # Jupyter notebook to PDF converter
+├── md_pdf.py           # Markdown to PDF converter (Pandoc)
+├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
 ├── requirements.txt
 └── .env                # Store your OpenAI API key here
 ```

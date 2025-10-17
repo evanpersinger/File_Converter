@@ -1,4 +1,4 @@
-# ipynb_to_pdf.py
+# ipynb_pdf.py
 # Convert a Jupyter notebook to a PDF file using nbconvert
 
 import os
@@ -24,9 +24,10 @@ def convert_notebook_to_pdf(notebook_path, output_path=None):
     except Exception:
         pass
 
-    # Set up input and output directories
-    input_dir = Path("input")
-    output_dir = Path("output")
+    # Set up input and output directories relative to this script
+    script_dir = Path(__file__).resolve().parent
+    input_dir = script_dir / "input"
+    output_dir = script_dir / "output"
     
     # Create output directory if it doesn't exist
     output_dir.mkdir(exist_ok=True)
@@ -82,7 +83,8 @@ def main():
     """Main function to handle command line usage"""
     if len(sys.argv) < 2:
         # No args: convert all .ipynb files in input/
-        input_dir = Path("input")
+        script_dir = Path(__file__).resolve().parent
+        input_dir = script_dir / "input"
         notebooks = sorted(p for p in input_dir.glob("*.ipynb"))
         if not notebooks:
             print("No .ipynb files found in input folder")
