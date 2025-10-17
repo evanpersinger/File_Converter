@@ -19,7 +19,12 @@ os.makedirs(output_folder, exist_ok=True)
 excel_files = glob.glob(os.path.join(input_folder, '*.xlsx'))
 
 if not excel_files:
-    print("No Excel files found in input folder")
+    # If only CSVs are present, notify they're already CSV
+    csv_present = glob.glob(os.path.join(input_folder, '*.csv'))
+    if csv_present:
+        print("That file is already in csv format")
+    else:
+        print("No Excel files found in input folder")
 else:
     print("Found {len(excel_files)} Excel file(s)")
     

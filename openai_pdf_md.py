@@ -36,10 +36,21 @@ parser = VisionParser(
 
 
 # Process all PDF files in the input directory
-for pdf_name in os.listdir(input_dir):
+entries = list(os.listdir(input_dir))
+pdf_names = [n for n in entries if n.lower().endswith(".pdf")]
+
+# If there are no PDFs but there are Markdown files, notify and exit early
+if not pdf_names:
+    md_present = [n for n in entries if n.lower().endswith(".md")]
+    if md_present:
+        print("That file is already in md format")
+    else:
+        print("No PDF files found in input folder")
+    pass
+
+for pdf_name in pdf_names:
     # Skip files that aren't PDFs
-    if not pdf_name.lower().endswith(".pdf"):
-        continue
+    # already filtered to .pdf
 
     # Create full path to the PDF file
     pdf_path = os.path.join(input_dir, pdf_name)

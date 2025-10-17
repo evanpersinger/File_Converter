@@ -65,8 +65,13 @@ def main():
             image_files.append(file)
     
     if not image_files:
-        print(f"No image files found in '{input_folder}' folder")
-        print("Supported formats: PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP")
+        # If only .txt files are present, they are already text outputs
+        txt_present = [f for f in os.listdir(input_folder) if f.lower().endswith('.txt')]
+        if txt_present:
+            print("That file is already in txt format")
+        else:
+            print(f"No image files found in '{input_folder}' folder")
+            print("Supported formats: PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP")
         sys.exit(1)
     
     print(f"Found {len(image_files)} image(s) to process:")

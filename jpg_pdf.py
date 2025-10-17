@@ -25,7 +25,12 @@ def convert_jpg_to_pdf():
                 glob.glob(os.path.join(input_folder, '*.jpeg'))
     
     if not jpg_files:
-        print("No JPG files found in input folder")
+        # If there are only PDFs present, notify the user those are already in target format
+        pdf_present = glob.glob(os.path.join(input_folder, '*.pdf'))
+        if pdf_present:
+            print("That file is already in pdf format")
+        else:
+            print("No JPG files found in input folder")
         return
     
     print(f"Found {len(jpg_files)} JPG files to convert")

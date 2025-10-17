@@ -26,7 +26,12 @@ print(f"Looking for PDF files in: {input_folder}")
 print(f"Found files: {pdf_files}")
 
 if not pdf_files:
-    print("No PDF files found in input folder")
+    # If only Markdown files are present, notify they're already in MD format
+    md_present = glob.glob(os.path.join(input_folder, '*.md'))
+    if md_present:
+        print("That file is already in md format")
+    else:
+        print("No PDF files found in input folder")
 else:
     print(f"Found {len(pdf_files)} PDF file(s)")
     
