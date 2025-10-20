@@ -1,5 +1,5 @@
 
-
+# venv files
 __pycache__/
 .env
 .cursorignore
@@ -18,4 +18,9 @@ Thumbs.db
 # input/output folders
 input/
 output/
+
+
+
+
+issues.txt
 old_files/
