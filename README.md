@@ -198,6 +198,35 @@ python pptx_pdf.py
 3. Saves PDF files to the `output/` folder
 4. Shows summary of successful/failed conversions
 
+### sql_pdf.py
+Converts SQL files to PDF format with syntax highlighting and proper formatting.
+
+**Usage:**
+```bash
+# Option A: Convert all SQL files in input/ directory
+python sql_pdf.py
+
+# Option B: Convert specific file
+python sql_pdf.py file.sql [output.pdf]
+```
+
+**Python packages (versions from requirements.txt):**
+- reportlab==4.2.5
+- sqlparse==0.5.0
+
+**How it works:**
+1. Automatically processes ALL SQL files in the `input/` folder
+2. Formats SQL with proper indentation and keyword highlighting
+3. Creates PDF with syntax highlighting and clean formatting
+4. Saves PDF files to the `output/` folder
+5. Shows summary of successful/failed conversions
+
+**Features:**
+- SQL syntax highlighting
+- Proper code formatting and indentation
+- Clean PDF layout with title and formatted code blocks
+- Support for all SQL dialects (MySQL, PostgreSQL, SQLite, etc.)
+
 ### Rmd_pdf.py
 Converts R Markdown (.Rmd) files to PDF. Prefers R's rmarkdown; falls back to pandoc if R unavailable.
 
@@ -239,6 +268,7 @@ converter/
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
 ├── Rmd_pdf.py          # R Markdown to PDF converter
+├── sql_pdf.py           # SQL to PDF converter
 ├── requirements.txt
 └── .env                # Store your OpenAI API key here
 ```
