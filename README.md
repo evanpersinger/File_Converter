@@ -198,6 +198,39 @@ python pptx_pdf.py
 3. Saves PDF files to the `output/` folder
 4. Shows summary of successful/failed conversions
 
+### docx_pdf.py
+Converts Microsoft Word (.docx) files to PDF format with proper table rendering.
+
+**Usage:**
+```bash
+# Option A: Convert all DOCX files in input/ directory
+python docx_pdf.py
+
+# Option B: Convert specific file
+python docx_pdf.py file.docx [output.pdf]
+
+# Option C: Use custom input/output directories
+python docx_pdf.py --input-dir myinput --output-dir myoutput
+```
+
+**Python packages (versions from requirements.txt):**
+- reportlab==4.4.4
+- python-docx==1.1.2
+
+**How it works:**
+1. Automatically processes ALL DOCX files in the `input/` folder
+2. Extracts text and tables from Word documents
+3. Creates PDF with proper formatting and table rendering
+4. Saves PDF files to the `output/` folder
+5. Shows summary of successful/failed conversions
+
+**Features:**
+- Clean text formatting and spacing
+- Table rendering with borders and proper layout
+- Preserves document structure (paragraphs and tables in order)
+- Support for UTF-8 encoding and special characters
+- Custom input/output directories support
+
 ### sql_pdf.py
 Converts SQL files to PDF format with syntax highlighting and proper formatting.
 
@@ -293,8 +326,9 @@ converter/
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
+├── docx_pdf.py        # Word to PDF converter
 ├── Rmd_pdf.py          # R Markdown to PDF converter
-├── sql_pdf.py           # SQL to PDF converter
+├── sql_pdf.py          # SQL to PDF converter
 ├── txt_pdf.py          # TXT to PDF converter
 ├── requirements.txt
 └── .env                # Store your OpenAI API key here
