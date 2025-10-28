@@ -14,7 +14,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
-import sqlparse
 
 
 def setup_directories():
@@ -74,13 +73,8 @@ def create_pdf_from_sql(sql_file_path, output_path):
         with open(sql_file_path, 'r', encoding='utf-8') as file:
             sql_content = file.read()
         
-        # Parse and format SQL
-        try:
-            # Use sqlparse to format the SQL nicely
-            formatted_sql = sqlparse.format(sql_content, reindent=True, keyword_case='upper')
-        except Exception:
-            # Fallback to original content if parsing fails
-            formatted_sql = sql_content
+        # Keep original SQL formatting without reindenting
+        formatted_sql = sql_content
         
         # Create PDF document
         doc = SimpleDocTemplate(str(output_path), pagesize=A4)
