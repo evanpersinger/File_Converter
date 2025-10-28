@@ -112,18 +112,107 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
 
     # Fallback to pandoc (works for plain Markdown; R chunks won't execute)
     if command_exists("pandoc"):
+        import tempfile
+        header_path = None
+        modified_input_path = None
         try:
+            # Pre-process the Rmd file to break long lines
+            import re
+            
+            with open(full_input_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Break long lines by inserting spaces every 80 characters for regular text
+            # (but not inside code blocks or YAML headers)
+            lines = content.split('\n')
+            processed_lines = []
+            in_code_block = False
+            in_yaml = False
+            
+            for line in lines:
+                # Check if we're entering/exiting code blocks
+                if line.strip().startswith('```'):
+                    in_code_block = not in_code_block
+                    processed_lines.append(line)
+                    continue
+                
+                # Check if we're in YAML header
+                if line.strip() == '---':
+                    in_yaml = not in_yaml
+                    processed_lines.append(line)
+                    continue
+                
+                if not in_code_block and not in_yaml:
+                    # Break very long lines (over 70 chars) at word boundaries
+                    if len(line) > 70 and not line.strip().startswith('#'):
+                        # Insert a line break after appropriate length
+                        words = line.split()
+                        if len(words) > 1:
+                            current_line = ""
+                            for word in words:
+                                if len(current_line) + len(word) + 1 > 70 and current_line:
+                                    processed_lines.append(current_line)
+                                    current_line = word
+                                else:
+                                    current_line = current_line + " " + word if current_line else word
+                            if current_line:
+                                processed_lines.append(current_line)
+                        else:
+                            processed_lines.append(line)
+                    else:
+                        processed_lines.append(line)
+                else:
+                    processed_lines.append(line)
+            
+            modified_content = '\n'.join(processed_lines)
+            
+            # Create a temporary LaTeX header for better text wrapping
+            header_content = r"""\usepackage{microtype}
+\usepackage{xurl}
+\usepackage{fvextra}
+\usepackage{seqsplit}
+\usepackage{url}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,breaksymbolleft={}}
+\PassOptionsToPackage{hyphens}{url}
+\sloppy
+\emergencystretch=3em
+\setlength{\emergencystretch}{3em}
+\hyphenpenalty=50
+\hbadness=10000
+\tolerance=9999
+\overfullrule=0pt
+\interlinepenalty=10000
+\pretolerance=1000
+"""
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False, encoding='utf-8') as tmp:
+                tmp.write(header_content)
+                header_path = tmp.name
+            
+            # Create temp modified Rmd file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.Rmd', delete=False, encoding='utf-8') as tmp:
+                tmp.write(modified_content)
+                modified_input_path = tmp.name
+            
             cmd = [
                 "pandoc",
-                str(full_input_path),
+                modified_input_path,
                 "-o",
                 str(full_output_path),
                 "--pdf-engine=xelatex",
+                "--standalone",
                 "-V", "geometry:margin=1in",  # Set 1 inch margins
                 "-V", "fontsize=11pt",  # Set readable font size
+                "-H", header_path,  # Include LaTeX header for text wrapping
             ]
             print(f"Converting '{full_input_path}' to '{full_output_path}' using pandoc...")
             result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # Clean up temp files
+            if os.path.exists(header_path):
+                os.unlink(header_path)
+            if os.path.exists(modified_input_path):
+                os.unlink(modified_input_path)
+            
             if result.returncode == 0 and full_output_path.exists():
                 print(f"Successfully converted to '{full_output_path}'")
                 return True
@@ -136,6 +225,12 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
         except Exception as e:
             print(f"Unexpected error running pandoc: {e}")
             return False
+        finally:
+            # Clean up temp files on error
+            if header_path and os.path.exists(header_path):
+                os.unlink(header_path)
+            if modified_input_path and os.path.exists(modified_input_path):
+                os.unlink(modified_input_path)
 
     print("Neither Rscript (rmarkdown) nor pandoc found. Please install one of them to convert .Rmd to PDF.")
     print("- Install R + rmarkdown: Rscript -e 'install.packages(\"rmarkdown\")'")
