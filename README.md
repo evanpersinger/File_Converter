@@ -227,6 +227,32 @@ python sql_pdf.py file.sql [output.pdf]
 - Clean PDF layout with title and formatted code blocks
 - Support for all SQL dialects (MySQL, PostgreSQL, SQLite, etc.)
 
+### txt_pdf.py
+Converts text (.txt) files to PDF format with clean formatting.
+
+**Usage:**
+```bash
+# Option A: Convert all TXT files in input/ directory
+python txt_pdf.py
+
+# Option B: Convert specific file
+python txt_pdf.py file.txt [output.pdf]
+```
+
+**Python packages (versions from requirements.txt):**
+- reportlab==4.2.5
+
+**How it works:**
+1. Automatically processes ALL TXT files in the `input/` folder
+2. Creates PDF with clean formatting and readable fonts
+3. Saves PDF files to the `output/` folder
+4. Shows summary of successful/failed conversions
+
+**Features:**
+- Clean text formatting
+- Proper line breaks and spacing
+- Support for UTF-8 encoding
+
 ### Rmd_pdf.py
 Converts R Markdown (.Rmd) files to PDF. Prefers R's rmarkdown; falls back to pandoc if R unavailable.
 
@@ -269,6 +295,7 @@ converter/
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
 ├── Rmd_pdf.py          # R Markdown to PDF converter
 ├── sql_pdf.py           # SQL to PDF converter
+├── txt_pdf.py          # TXT to PDF converter
 ├── requirements.txt
 └── .env                # Store your OpenAI API key here
 ```
