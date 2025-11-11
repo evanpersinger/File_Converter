@@ -199,7 +199,7 @@ python pptx_pdf.py
 4. Shows summary of successful/failed conversions
 
 ### docx_pdf.py
-Converts Microsoft Word (.docx) files to PDF format with proper table rendering.
+Converts Microsoft Word (.docx) files to PDF format with proper table rendering, image extraction, and formatting preservation.
 
 **Usage:**
 ```bash
@@ -216,18 +216,22 @@ python docx_pdf.py --input-dir myinput --output-dir myoutput
 **Python packages (versions from requirements.txt):**
 - reportlab==4.4.4
 - python-docx==1.1.2
+- pillow==11.3.0 (for image handling)
 
 **How it works:**
 1. Automatically processes ALL DOCX files in the `input/` folder
-2. Extracts text and tables from Word documents
-3. Creates PDF with proper formatting and table rendering
+2. Extracts text, tables, and images from Word documents
+3. Creates PDF with proper formatting, table rendering, and embedded images
 4. Saves PDF files to the `output/` folder
 5. Shows summary of successful/failed conversions
 
 **Features:**
 - Clean text formatting and spacing
+- **Text formatting preservation** (bold, italic, underline)
+- **Image extraction and embedding** with proper sizing
+- **Proper text/image ordering** - maintains document structure
 - Table rendering with borders and proper layout
-- Preserves document structure (paragraphs and tables in order)
+- Preserves document structure (paragraphs, tables, and images in order)
 - Support for UTF-8 encoding and special characters
 - Custom input/output directories support
 

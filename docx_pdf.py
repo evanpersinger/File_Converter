@@ -6,11 +6,13 @@ import sys
 import argparse
 from pathlib import Path
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from docx import Document
+from docx.oxml.ns import qn
+import io
 
 
 # Create input and output directories if they don't exist
@@ -57,6 +59,31 @@ def add_table_to_story(story, table):
     
     story.append(pdf_table)
     story.append(Spacer(1, 12))
+
+
+# Convert a paragraph with formatting (bold, italic) to HTML-like text for ReportLab
+def para_to_html(para):
+    """Convert a docx paragraph with runs to HTML-like text for ReportLab"""
+    html_parts = []
+    for run in para.runs:
+        text = run.text
+        if not text:
+            continue
+        
+        # Escape special characters
+        text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        # Apply formatting
+        if run.bold:
+            text = f'<b>{text}</b>'
+        if run.italic:
+            text = f'<i>{text}</i>'
+        if run.underline:
+            text = f'<u>{text}</u>'
+        
+        html_parts.append(text)
+    
+    return ''.join(html_parts)
 
 
 # Convert a .docx file to PDF
@@ -143,11 +170,82 @@ def convert_docx_to_pdf(docx_path, output_path=None, input_dir=None, output_dir=
             # Check if it's a paragraph
             if elem_id in para_map:
                 para = para_map[elem_id]
-                if para.text.strip():
-                    # Escape special characters for reportlab
-                    escaped_text = para.text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                    story.append(Paragraph(escaped_text, normal_style))
-                else:
+                
+                # Process runs in order to maintain text/image order
+                text_runs = []
+                has_formatting = False
+                
+                for run in para.runs:
+                    # Check if this run contains an image
+                    has_image = False
+                    try:
+                        drawings = run._element.xpath('.//w:drawing')
+                        for drawing in drawings:
+                            blips = drawing.xpath('.//a:blip')
+                            for blip in blips:
+                                rel_id = blip.get(qn('r:embed'))
+                                if rel_id and rel_id in docx.part.rels:
+                                    has_image = True
+                                    rel = docx.part.rels[rel_id]
+                                    img_data = rel.target_part.blob
+                                    
+                                    # Get image dimensions if available
+                                    try:
+                                        from PIL import Image as PILImage
+                                        pil_img = PILImage.open(io.BytesIO(img_data))
+                                        img_width, img_height = pil_img.size
+                                        # Scale to fit page width (max 5 inches)
+                                        max_width = 5 * inch
+                                        if img_width > max_width:
+                                            ratio = max_width / img_width
+                                            img_width = max_width
+                                            img_height = img_height * ratio
+                                        else:
+                                            img_width = img_width * (72 / 96)  # Convert pixels to points
+                                            img_height = img_height * (72 / 96)
+                                    except Exception:
+                                        # Default size if we can't read dimensions
+                                        img_width = 5 * inch
+                                        img_height = 3 * inch
+                                    
+                                    img = Image(io.BytesIO(img_data), width=img_width, height=img_height)
+                                    story.append(img)
+                                    story.append(Spacer(1, 12))
+                    except Exception:
+                        pass
+                    
+                    # If run has text and no image, collect it
+                    if run.text and not has_image:
+                        text_runs.append(run)
+                        if run.bold or run.italic or run.underline:
+                            has_formatting = True
+                
+                # Add text from all runs together
+                if text_runs:
+                    if has_formatting:
+                        # Build HTML from all text runs
+                        html_parts = []
+                        for run in text_runs:
+                            text = run.text
+                            if not text:
+                                continue
+                            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                            if run.bold:
+                                text = f'<b>{text}</b>'
+                            if run.italic:
+                                text = f'<i>{text}</i>'
+                            if run.underline:
+                                text = f'<u>{text}</u>'
+                            html_parts.append(text)
+                        if html_parts:
+                            story.append(Paragraph(''.join(html_parts), normal_style))
+                    else:
+                        # Plain text - combine all runs
+                        combined_text = ''.join(run.text for run in text_runs)
+                        escaped_text = combined_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        story.append(Paragraph(escaped_text, normal_style))
+                elif not any(run._element.xpath('.//w:drawing') for run in para.runs):
+                    # Empty paragraph with no images - add spacing
                     story.append(Spacer(1, 6))
             
             # Check if it's a table
