@@ -7,10 +7,16 @@
 from vision_parse import VisionParser  # Library for PDF to markdown conversion
 from dotenv import load_dotenv          # Load environment variables from .env file
 import os                               # File system operations 
+import sys                              # System operations (for exit)
 from pathlib import Path
 
 load_dotenv()
 
+# Check if API key exists
+if 'OPENAI_API_KEY' not in os.environ:
+    print("Error: OPENAI_API_KEY not found in environment variables")
+    print("Please add OPENAI_API_KEY to your .env file")
+    sys.exit(1)
 
 # Define input and output directories relative to this script
 script_dir = Path(__file__).resolve().parent
@@ -46,30 +52,32 @@ if not pdf_names:
         print("That file is already in md format")
     else:
         print("No PDF files found in input folder")
-    pass
+    sys.exit(0)
 
 for pdf_name in pdf_names:
-    # Skip files that aren't PDFs
-    # already filtered to .pdf
-
     # Create full path to the PDF file
-    pdf_path = os.path.join(input_dir, pdf_name)
+    pdf_path = input_dir / pdf_name
 
-    # Convert PDF to markdown (returns list of pages)
-    pages = parser.convert_pdf(pdf_path)
-    # Join all pages into a single markdown document
-    full_md = "\n\n".join(pages)
+    try:
+        # Convert PDF to markdown (returns list of pages)
+        pages = parser.convert_pdf(str(pdf_path))
+        # Join all pages into a single markdown document
+        full_md = "\n\n".join(pages)
 
-    # Create output filename (replace .pdf with .md)
-    base = os.path.splitext(pdf_name)[0]  # Remove .pdf extension
-    out_md = f"{base}.md"                 # Add .md extension
-    out_path = os.path.join(output_dir, out_md)
+        # Create output filename (replace .pdf with .md)
+        base = pdf_name.rsplit(".pdf", 1)[0]  # Remove .pdf extension
+        out_md = f"{base}.md"                 # Add .md extension
+        out_path = output_dir / out_md
 
-    # Write markdown content to output file
-    with open(out_path, "w") as f:
-        f.write(full_md)
+        # Write markdown content to output file
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(full_md)
 
-    # confirmation message
-    print(f"Converted {pdf_name} -> {out_md}")
+        # confirmation message
+        print(f"Converted {pdf_name} -> {out_md}")
+    
+    except Exception as e:
+        print(f"Error converting {pdf_name}: {e}")
+        continue
 
 
