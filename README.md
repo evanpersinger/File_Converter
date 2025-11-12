@@ -290,6 +290,39 @@ python txt_pdf.py file.txt [output.pdf]
 - Proper line breaks and spacing
 - Support for UTF-8 encoding
 
+### R_Rmd.py
+Converts R (.R) files to R Markdown (.Rmd) format.
+
+**Usage:**
+```bash
+# Option A: Convert all R files in input/ directory
+python R_Rmd.py
+
+# Option B: Convert specific file
+python R_Rmd.py file.R [output.Rmd]
+
+# Option C: Use custom input/output directories
+python R_Rmd.py --input-dir myinput --output-dir myoutput
+```
+
+**Python packages:**
+- None beyond the standard library
+
+**How it works:**
+1. Reads R file and converts comments to markdown text
+2. Wraps code sections in R code chunks (```{r} ... ```)
+3. Formats headers and removes separator lines
+4. Groups related code into logical chunks
+5. Saves Rmd files to the `output/` folder
+
+**Features:**
+- Converts R comments to markdown text
+- Groups code into logical chunks
+- Formats section headers properly
+- Removes separator lines (===)
+- Formats name/ID at the top
+- Limits empty lines for clean output
+
 ### Rmd_pdf.py
 Converts R Markdown (.Rmd) files to PDF. Prefers R's rmarkdown; falls back to pandoc if R unavailable.
 
@@ -331,6 +364,7 @@ converter/
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
 ├── docx_pdf.py        # Word to PDF converter
+├── R_Rmd.py            # R to R Markdown converter
 ├── Rmd_pdf.py          # R Markdown to PDF converter
 ├── sql_pdf.py          # SQL to PDF converter
 ├── txt_pdf.py          # TXT to PDF converter

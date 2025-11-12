@@ -23,12 +23,13 @@ def convert_md_to_pdf(md_path, output_path=None):
     Returns:
         bool: True if conversion successful, False otherwise
     """
+    
     input_dir = Path("input")
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
 
     # Build full input path
-    # Guard: if the provided path already points to a PDF, bail out early
+    # if the provided path already points to a PDF, bail out early
     try:
         provided_suffix = Path(md_path).suffix.lower()
         if provided_suffix == ".pdf":
