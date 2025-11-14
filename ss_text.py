@@ -7,17 +7,64 @@ Converts image files to text using OCR
 """
 
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import os
 import sys
+import re
 from pathlib import Path
 
-def convert_image_to_text(image_path, output_path=None):
+def preprocess_image(image):
     """
-    Convert an image file to text using OCR
+    Preprocess image to improve OCR accuracy
+    Args:
+        image: PIL Image object
+    
+    Returns:
+        PIL Image: Preprocessed image
+    """
+    # Convert to grayscale for better OCR
+    if image.mode != 'L':
+        image = image.convert('L')
+    
+    # Enhance contrast
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(1.5)
+    
+    # Enhance sharpness
+    enhancer = ImageEnhance.Sharpness(image)
+    image = enhancer.enhance(1.2)
+    
+    # Apply slight denoising
+    image = image.filter(ImageFilter.MedianFilter(size=3))
+    
+    return image
+
+def clean_text(text):
+    """
+    Clean extracted text by removing excessive whitespace
+    Args:
+        text (str): Raw extracted text
+    
+    Returns:
+        str: Cleaned text
+    """
+    if not text:
+        return ""
+    
+    # Remove excessive blank lines (more than 2 consecutive newlines)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Remove trailing whitespace from each line
+    lines = [line.rstrip() for line in text.split('\n')]
+    text = '\n'.join(lines)
+    
+    return text.strip()
+
+def convert_image_to_text(image_path):
+    """
+    Convert an image file to text using OCR with preprocessing
     Args:
         image_path (str): Path to the input image file
-        output_path (str, optional): Path to save the output text file
     
     Returns:
         str: Extracted text from the image
@@ -26,14 +73,19 @@ def convert_image_to_text(image_path, output_path=None):
         # Open the image
         image = Image.open(image_path)
         
-        # Convert image to text using OCR
-        text = pytesseract.image_to_string(image)
+        # Preprocess image for better OCR accuracy
+        processed_image = preprocess_image(image)
         
-        # Save to file if output path is provided
-        if output_path:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(text)
-            print(f"Text saved to: {output_path}")
+        # OCR with better configuration for accuracy
+        custom_config = r'--oem 3 --psm 6'
+        text = pytesseract.image_to_string(
+            processed_image,
+            config=custom_config,
+            lang='eng'
+        )
+        
+        # Clean the extracted text
+        text = clean_text(text)
         
         return text
         
@@ -80,80 +132,35 @@ def main():
     
     print("\nProcessing...")
     
-    # Process each image
-    successful = 0
-    failed = 0
+    # Create single output file
+    combined_filename = "all_extracted_text_combined.txt"
+    combined_path = os.path.join(output_folder, combined_filename)
     
+    # Collect all extracted text
+    all_text_parts = []
+    
+    # Process each image
     for image_filename in image_files:
         image_path = os.path.join(input_folder, image_filename)
-        
-        # Create output filename
-        input_name = Path(image_filename).stem
-        output_filename = f"{input_name}_extracted_text.txt"
-        output_path = os.path.join(output_folder, output_filename)
         
         print(f"\nConverting: {image_filename}")
         
         # Convert image to text
-        text = convert_image_to_text(image_path, output_path)
+        text = convert_image_to_text(image_path)
         
         if text:
-            successful += 1
-            print(f"✅ Success: {output_filename}")
+            all_text_parts.append(text)
+            print(f"Success")
         else:
-            failed += 1
             print(f"Failed: {image_filename}")
     
-    print(f"\n Summary:")
-    print(f"  Successful: {successful}")
-    print(f"  Failed: {failed}")
-    print(f"  Output folder: {output_folder}")
-    
-    # Combine all extracted text files into one
-    combine_all_text_files(output_folder)
-
-def combine_all_text_files(output_folder):
-    """
-    Combine all extracted text files into one single file
-    Args:
-        output_folder (str): Path to the output folder containing text files
-    """
-    try:
-        # Get all extracted text files
-        text_files = []
-        for file in os.listdir(output_folder):
-            if file.endswith('_extracted_text.txt'):
-                text_files.append(file)
-        
-        if not text_files:
-            print("No extracted text files found to combine")
-            return
-        
-        # Sort files to ensure consistent order
-        text_files.sort()
-        
-        # Create combined file
-        combined_filename = "all_extracted_text_combined.txt"
-        combined_path = os.path.join(output_folder, combined_filename)
-        
-        print(f"\nCombining {len(text_files)} text files into: {combined_filename}")
-        
-        with open(combined_path, 'w', encoding='utf-8') as combined_file:
-            for i, text_file in enumerate(text_files):
-                text_file_path = os.path.join(output_folder, text_file)
-                
-                # Read and write the content
-                with open(text_file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    combined_file.write(content)
-                
-                if i < len(text_files) - 1:  # Add newline between files (except last)
-                    combined_file.write("\n")
-        
-        print(f"✅ Combined text saved to: {combined_path}")
-        
-    except Exception as e:
-        print(f"Error combining text files: {e}")
+    # Write all text to single file
+    if all_text_parts:
+        with open(combined_path, 'w', encoding='utf-8') as f:
+            f.write('\n\n'.join(all_text_parts))
+        print(f"\nAll text saved to: {combined_filename}")
+    else:
+        print("\nNo text extracted from any images")
 
 if __name__ == "__main__":
     main()
