@@ -7,6 +7,19 @@ Simple scripts to convert files between different formats.
 ### xlsx_csv.py
 Converts Excel (.xlsx) to CSV (.csv).
 
+**Usage:**
+```bash
+python xlsx_csv.py
+```
+
+**Python packages (versions from requirements.txt):**
+- pandas==2.2.3
+
+**How it works:**
+1. Automatically processes ALL XLSX files in the `input/` folder
+2. Converts Excel files to CSV format
+3. Saves CSV files to the `output/` folder
+
 ### pdf_md.py
 Converts PDF files to Markdown format using text extraction, with optional OCR fallback.
 
@@ -16,11 +29,11 @@ python pdf_md.py
 ```
 
 **Python packages (versions from requirements.txt):**
-- pypdf==6.1.2
+- pypdf==6.0.0
 - pdfplumber==0.11.7
 - pdfminer-six==20250506
 - pytesseract==0.3.13
-- pillow==12.0.0
+- pillow==11.3.0
 
 **System requirements (optional for OCR):**
 - Tesseract OCR (macOS: `brew install tesseract`)
@@ -36,7 +49,7 @@ python openai_pdf_md.py
 **Python packages (versions from requirements.txt):**
 - vision-parse==0.1.13
 - python-dotenv==1.1.1
-- openai==2.5.0 (transitive dependency via vision-parse)
+- openai==1.75.0 (installed as dependency)
 
 **Configuration:**
 1. Create a `.env` file in the project root
@@ -57,7 +70,7 @@ python ss_text.py
 
 **Python packages (versions from requirements.txt):**
 - pytesseract==0.3.13
-- pillow==12.0.0
+- pillow==11.3.0
 
 **System requirements:**
 - Tesseract OCR (macOS: `brew install tesseract`)
@@ -166,7 +179,7 @@ python jpg_pdf.py
 ```
 
 **Python packages (versions from requirements.txt):**
-- pillow==12.0.0
+- pillow==11.3.0
 
 **How it works:**
 1. Automatically processes ALL JPG/JPEG files in the `input/` folder
@@ -216,7 +229,7 @@ python docx_pdf.py --input-dir myinput --output-dir myoutput
 **Python packages (versions from requirements.txt):**
 - reportlab==4.4.4
 - python-docx==1.1.2
-- pillow==11.3.0 (for image handling)
+- pillow==11.3.0
 
 **How it works:**
 1. Automatically processes ALL DOCX files in the `input/` folder
@@ -248,8 +261,7 @@ python sql_pdf.py file.sql [output.pdf]
 ```
 
 **Python packages (versions from requirements.txt):**
-- reportlab==4.2.5
-- sqlparse==0.5.0
+- reportlab==4.4.4
 
 **How it works:**
 1. Automatically processes ALL SQL files in the `input/` folder
@@ -277,7 +289,7 @@ python txt_pdf.py file.txt [output.pdf]
 ```
 
 **Python packages (versions from requirements.txt):**
-- reportlab==4.2.5
+- reportlab==4.4.4
 
 **How it works:**
 1. Automatically processes ALL TXT files in the `input/` folder
