@@ -8,10 +8,25 @@ import subprocess
 import argparse
 from pathlib import Path
 from shutil import which
+from datetime import date
+import re
 
 
 def command_exists(cmd):
     return which(cmd) is not None
+
+def replace_sys_date(content):
+    """Replace Sys.Date() with the actual current date in YYYY-MM-DD format."""
+    current_date = date.today().strftime('%Y-%m-%d')
+    # Replace inline R code chunks like `r Sys.Date()` with just the date
+    # Pattern matches: `r Sys.Date()` or `r Sys.Date() ` with optional spaces
+    inline_pattern = r'`r\s+Sys\.Date\s*\(\s*\)\s*`'
+    content = re.sub(inline_pattern, current_date, content)
+    # Also replace standalone Sys.Date() (handles various spacing)
+    # Pattern matches Sys.Date() with optional spaces inside parentheses
+    standalone_pattern = r'Sys\.Date\s*\(\s*\)'
+    content = re.sub(standalone_pattern, current_date, content)
+    return content
 
 # convert an R markdown file to a pdf file
 # returns True if successful, False otherwise
@@ -58,6 +73,9 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
             # Create a modified version with better formatting to prevent text overflow
             with open(full_input_path, 'r', encoding='utf-8') as f:
                 content = f.read()
+            
+            # Replace Sys.Date() with actual date
+            content = replace_sys_date(content)
             
             # Check if YAML header exists and add geometry settings for proper margins
             if content.startswith('---'):
@@ -117,10 +135,11 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
         modified_input_path = None
         try:
             # Pre-process the Rmd file to break long lines
-            import re
-            
             with open(full_input_path, 'r', encoding='utf-8') as f:
                 content = f.read()
+            
+            # Replace Sys.Date() with actual date
+            content = replace_sys_date(content)
             
             # Break long lines by inserting spaces every 80 characters for regular text
             # (but not inside code blocks or YAML headers)
