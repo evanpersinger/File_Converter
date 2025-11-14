@@ -124,6 +124,7 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
             
             # Break long lines by inserting spaces every 80 characters for regular text
             # (but not inside code blocks or YAML headers)
+            # Also escape # characters in code blocks to prevent LaTeX errors
             lines = content.split('\n')
             processed_lines = []
             in_code_block = False
@@ -142,7 +143,16 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
                     processed_lines.append(line)
                     continue
                 
-                if not in_code_block and not in_yaml:
+                if in_code_block:
+                    # Escape special LaTeX characters in code blocks
+                    # Double backslashes first (so \n becomes \\n)
+                    line = line.replace('\\', '\\\\')
+                    # Escape $ to prevent math mode interpretation
+                    line = line.replace('$', '\\$')
+                    # Escape # to prevent macro parameter errors
+                    line = line.replace('#', '\\#')
+                    processed_lines.append(line)
+                elif not in_yaml:
                     # Break very long lines (over 70 chars) at word boundaries
                     if len(line) > 70 and not line.strip().startswith('#'):
                         # Insert a line break after appropriate length
@@ -172,7 +182,6 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
 \usepackage{fvextra}
 \usepackage{seqsplit}
 \usepackage{url}
-\DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,breaksymbolleft={}}
 \PassOptionsToPackage{hyphens}{url}
 \sloppy
 \emergencystretch=3em
@@ -196,10 +205,12 @@ def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=No
             cmd = [
                 "pandoc",
                 modified_input_path,
+                "-f", "markdown",  # Use standard markdown (math will work in text, code blocks are protected)
                 "-o",
                 str(full_output_path),
                 "--pdf-engine=xelatex",
                 "--standalone",
+                "--syntax-highlighting=none",  # Disable highlighting to use plain verbatim
                 "-V", "geometry:margin=1in",  # Set 1 inch margins
                 "-V", "fontsize=11pt",  # Set readable font size
                 "-H", header_path,  # Include LaTeX header for text wrapping
