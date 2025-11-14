@@ -1,4 +1,4 @@
-# ss_text.py
+# ss_tet.py
 # This script converts an image to text using OCR
 
 """
