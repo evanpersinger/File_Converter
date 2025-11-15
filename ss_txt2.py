@@ -380,10 +380,14 @@ def fix_common_ocr_errors(text):
     # "1t" -> "a1" (in table cell context)
     text = re.sub(r'\b1t\b', 'a1', text)  # "1t" -> "a1"
     
-    # Fix other similar patterns where letters are read as numbers
-    # "1a" might be "a1" reversed, but let's be careful
-    # "1b" might be "b1" reversed
-    # Actually, let's focus on the specific case "1t" -> "a1" for now
+    # Fix patterns where number "1" is read as "t" after a letter
+    # "at" -> "a1" (when "a1" is misread as "at")
+    # Be careful: "at" is a real word, but in 2-char table cells it's likely "a1"
+    text = re.sub(r'\bat\b', 'a1', text)  # "at" -> "a1" (standalone, like in table cells)
+    
+    # Fix similar patterns for other letters
+    # "bt" -> "b1", "ct" -> "c1", etc.
+    text = re.sub(r'\b([a-z])t\b', r'\g<1>1', text)  # "at" -> "a1", "bt" -> "b1", etc.
     
     # Fix number misreadings
     corrections = {
