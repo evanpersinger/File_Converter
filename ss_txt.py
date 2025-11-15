@@ -1,5 +1,7 @@
 # ss_tet.py
 # This script converts an image to text using OCR
+# it's only good at converting text images to text
+# avoid using this script for images with tables, shapes, or other structured content
 
 """
 Screenshot to Text Converter
