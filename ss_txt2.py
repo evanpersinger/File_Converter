@@ -588,9 +588,9 @@ def extract_table_cells(image, table_cells):
                 if text:
                     row_texts.append(text)
         
-        # Format row with pipe separators
+        # Format row with pipe separators and borders
         if row_texts:
-            cell_texts.append(' | '.join(row_texts))
+            cell_texts.append('| ' + ' | '.join(row_texts) + ' |')
     
     return '\n'.join(cell_texts)
 
@@ -708,12 +708,12 @@ def detect_and_group_table_lines(lines):
             best_fit_score = fit_score
             best_column_count = col_count
     
-    # Group cells into rows
+    # Group cells into rows with borders
     table_rows = []
     for i in range(0, len(table_cells), best_column_count):
         row_cells = table_cells[i:i + best_column_count]
         if len(row_cells) >= 2:
-            table_rows.append(' | '.join(row_cells))
+            table_rows.append('| ' + ' | '.join(row_cells) + ' |')
     
     # Second pass: find table section and replace with grouped rows
     result = []
@@ -803,7 +803,7 @@ def clean_structured_text(text, is_table=False):
                 if (2 <= len(parts) <= 6 and 
                     all(len(part) < 50 for part in parts) and  # Each cell is short
                     not any(len(part) > 30 and ' ' in part for part in parts)):  # No long multi-word cells
-                    formatted_line = ' | '.join(parts)
+                    formatted_line = '| ' + ' | '.join(parts) + ' |'
                     formatted_lines.append(formatted_line)
                 else:
                     # Regular text with spacing - keep as is
