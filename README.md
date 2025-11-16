@@ -187,6 +187,23 @@ python jpg_pdf.py
 3. Saves PDF files to the `output/` folder
 4. Shows summary of successful/failed conversions
 
+### png_pdf.py
+Converts PNG images to PDF files.
+
+**Usage:**
+```bash
+python png_pdf.py
+```
+
+**Python packages (versions from requirements.txt):**
+- pillow==11.3.0
+
+**How it works:**
+1. Automatically processes ALL PNG files in the `input/` folder
+2. Converts images to PDF format (handles transparency by converting to RGB)
+3. Saves PDF files to the `output/` folder
+4. Shows summary of successful/failed conversions
+
 ### pptx_pdf.py
 Converts PowerPoint (.pptx) files to PDF using LibreOffice.
 
@@ -361,6 +378,33 @@ python Rmd_pdf.py file.Rmd [output.pdf]
 2. Falls back to pandoc if R unavailable (treats as plain markdown)
 3. Saves PDF files to the `output/` folder
 
+### combine_files.py
+Combines multiple files of the same type into one file. Supports PDFs, images, and text files.
+
+**Usage:**
+```bash
+python combine_files.py
+```
+
+**Python packages (versions from requirements.txt):**
+- pillow==11.3.0
+- pypdf==6.0.0
+
+**How it works:**
+1. Automatically detects file types in the `input/` folder
+2. Groups files by type (PDFs, images, text files)
+3. Combines each group:
+   - **PDFs** → merges into one PDF file (`combined.pdf`)
+   - **Images** (JPG, PNG, GIF, BMP) → combines into one image file (`combined_images.png` or `.jpg`)
+   - **Text files** (TXT, MD) → concatenates into one text file (`combined_text.txt`)
+4. Saves combined files to the `output/` folder
+
+**Features:**
+- Automatically detects and groups files by type
+- Images are stacked vertically in a single image file
+- Text files are concatenated with file headers
+- PDFs are merged preserving all pages
+
 ## Folder Structure
 ```
 converter/
@@ -374,6 +418,8 @@ converter/
 ├── md_pdf.py           # Markdown to PDF converter (Pandoc)
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
+├── png_pdf.py          # PNG to PDF converter
+├── combine_files.py    # File combiner (PDFs, images, text)
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
 ├── docx_pdf.py        # Word to PDF converter
 ├── R_Rmd.py            # R to R Markdown converter
