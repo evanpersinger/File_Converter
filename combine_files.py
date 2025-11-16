@@ -2,7 +2,7 @@
 # combines multiple files of the same type into one file
 
 import os
-import glob
+import re
 from pathlib import Path
 from PIL import Image
 import pypdf
@@ -15,12 +15,20 @@ input_folder = os.path.join(script_dir, 'input')
 output_folder = os.path.join(script_dir, 'output')
 
 
+def natural_sort_key(filename):
+    """Sort filenames with numbers in natural order (e.g., Q1, Q2, Q10, Q11)"""
+    def convert(text):
+        return int(text) if text.isdigit() else text.lower()
+    
+    return [convert(c) for c in re.split(r'(\d+)', filename)]
+
+
 def combine_pdfs(pdf_files, output_path):
     """Combine multiple PDF files into one PDF"""
     try:
         merger = pypdf.PdfMerger()
         
-        for pdf_file in sorted(pdf_files):
+        for pdf_file in pdf_files:
             merger.append(pdf_file)
         
         merger.write(output_path)
@@ -39,7 +47,7 @@ def combine_images(image_files, output_path, output_format='png'):
         total_height = 0
         
         # Load all images and calculate dimensions
-        for img_file in sorted(image_files):
+        for img_file in image_files:
             with Image.open(img_file) as img:
                 # Convert to RGB if saving as JPG, otherwise keep original mode
                 if output_format.lower() == 'jpg' and img.mode != 'RGB':
@@ -80,7 +88,7 @@ def combine_text_files(text_files, output_path):
     """Combine multiple text files into one text file"""
     try:
         with open(output_path, 'w', encoding='utf-8') as outfile:
-            for text_file in sorted(text_files):
+            for text_file in text_files:
                 with open(text_file, 'r', encoding='utf-8') as infile:
                     # Add filename as header
                     outfile.write(f"\n{'='*60}\n")
@@ -101,15 +109,35 @@ def combine_files():
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     
-    # Find all files by type
-    pdf_files = glob.glob(os.path.join(input_folder, '*.pdf'))
-    image_files = glob.glob(os.path.join(input_folder, '*.jpg')) + \
-                  glob.glob(os.path.join(input_folder, '*.jpeg')) + \
-                  glob.glob(os.path.join(input_folder, '*.png')) + \
-                  glob.glob(os.path.join(input_folder, '*.gif')) + \
-                  glob.glob(os.path.join(input_folder, '*.bmp'))
-    text_files = glob.glob(os.path.join(input_folder, '*.txt')) + \
-                 glob.glob(os.path.join(input_folder, '*.md'))
+    # Get all files in directory order (as they appear in the folder)
+    all_files = []
+    if os.path.exists(input_folder):
+        for filename in os.listdir(input_folder):
+            filepath = os.path.join(input_folder, filename)
+            if os.path.isfile(filepath):
+                all_files.append(filepath)
+    
+    # Filter files by type, then sort naturally (numerical order)
+    pdf_files = []
+    image_files = []
+    text_files = []
+    
+    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp'}
+    text_extensions = {'.txt', '.md'}
+    
+    for filepath in all_files:
+        ext = os.path.splitext(filepath)[1].lower()
+        if ext == '.pdf':
+            pdf_files.append(filepath)
+        elif ext in image_extensions:
+            image_files.append(filepath)
+        elif ext in text_extensions:
+            text_files.append(filepath)
+    
+    # Sort files naturally (numerical order) by filename
+    pdf_files.sort(key=lambda x: natural_sort_key(os.path.basename(x)))
+    image_files.sort(key=lambda x: natural_sort_key(os.path.basename(x)))
+    text_files.sort(key=lambda x: natural_sort_key(os.path.basename(x)))
     
     # Combine PDFs
     if len(pdf_files) > 1:
