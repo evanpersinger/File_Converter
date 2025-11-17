@@ -77,7 +77,9 @@ def combine_images(image_files, output_path, output_format='png'):
             current_height += img.height
         
         # Save combined image
-        combined.save(output_path, output_format.upper(), quality=95)
+        # PIL expects 'JPEG' not 'JPG' for JPEG format
+        pil_format = 'JPEG' if output_format.lower() == 'jpg' else output_format.upper()
+        combined.save(output_path, pil_format, quality=95)
         return True
     except Exception as e:
         print(f"Error combining images: {e}")
