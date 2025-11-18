@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 from PIL import Image
-import pypdf
+from pypdf import PdfWriter
 
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,13 +26,13 @@ def natural_sort_key(filename):
 def combine_pdfs(pdf_files, output_path):
     """Combine multiple PDF files into one PDF"""
     try:
-        merger = pypdf.PdfMerger()
+        writer = PdfWriter()
         
         for pdf_file in pdf_files:
-            merger.append(pdf_file)
+            writer.append(pdf_file)
         
-        merger.write(output_path)
-        merger.close()
+        with open(output_path, 'wb') as out:
+            writer.write(out)
         return True
     except Exception as e:
         print(f"Error combining PDFs: {e}")
