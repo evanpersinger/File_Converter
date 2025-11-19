@@ -118,6 +118,9 @@ def main():
         if Path(file).suffix.lower() in image_extensions:
             image_files.append(file)
     
+    # Sort files to process in order
+    image_files.sort()
+    
     if not image_files:
         # If only .txt files are present, they are already text outputs
         txt_present = [f for f in os.listdir(input_folder) if f.lower().endswith('.txt')]
