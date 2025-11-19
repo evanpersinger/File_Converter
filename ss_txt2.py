@@ -775,6 +775,68 @@ def clean_structured_text(text, is_table=False):
     
     # Remove trailing whitespace from each line
     lines = [line.rstrip() for line in text.split('\n')]
+    
+    # Fix sentence structure for non-table text: join lines that are part of the same sentence
+    if not is_table:
+        fixed_lines = []
+        i = 0
+        while i < len(lines):
+            current_line = lines[i]
+            
+            # If this is an empty line, preserve it (paragraph break)
+            if not current_line.strip():
+                fixed_lines.append(current_line)
+                i += 1
+                continue
+            
+            # Skip table-formatted lines (they start with |)
+            if current_line.strip().startswith('|'):
+                fixed_lines.append(current_line)
+                i += 1
+                continue
+            
+            # Try to join with following lines that are clearly continuations
+            while i + 1 < len(lines):
+                next_line = lines[i + 1]
+                
+                # Stop if next line is empty or is a table line
+                if not next_line.strip() or next_line.strip().startswith('|'):
+                    break
+                
+                next_stripped = next_line.strip()
+                
+                # Check if next line starts with lowercase (continuation)
+                starts_with_lowercase = next_stripped and next_stripped[0].islower()
+                
+                # Check if current line ends with continuation punctuation
+                ends_with_continuation = re.search(r'[,;:—–-]\s*$', current_line)
+                
+                # Only join if:
+                # 1. Next line starts with lowercase (clear continuation), OR
+                # 2. Current line ends with continuation punctuation AND next doesn't start with uppercase
+                should_join = False
+                
+                if starts_with_lowercase:
+                    # Next line clearly continues the sentence
+                    should_join = True
+                elif ends_with_continuation and next_stripped and not next_stripped[0].isupper():
+                    # Current line has continuation punctuation and next doesn't start new sentence
+                    should_join = True
+                
+                if should_join:
+                    # Join with a space
+                    current_line = current_line + ' ' + next_stripped
+                    i += 1  # Move to next line
+                else:
+                    # Don't join, stop here
+                    break
+            
+            # Add the (possibly joined) line
+            fixed_lines.append(current_line)
+            i += 1
+        
+        lines = fixed_lines
+    
     text = '\n'.join(lines)
     
     # Only format as table if explicitly from table detection
@@ -812,6 +874,10 @@ def clean_structured_text(text, is_table=False):
                 formatted_lines.append(line)
         
         text = '\n'.join(formatted_lines)
+    
+    # Final cleanup: remove excessive spaces
+    text = re.sub(r' +', ' ', text)
+    text = re.sub(r'\n +', '\n', text)  # Remove leading spaces after newlines
     
     return text.strip()
 

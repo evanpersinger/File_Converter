@@ -43,7 +43,7 @@ def preprocess_image(image):
 
 def clean_text(text):
     """
-    Clean extracted text by removing excessive whitespace
+    Clean extracted text by removing excessive whitespace and fixing sentence structure
     Args:
         text (str): Raw extracted text
     
@@ -58,7 +58,66 @@ def clean_text(text):
     
     # Remove trailing whitespace from each line
     lines = [line.rstrip() for line in text.split('\n')]
-    text = '\n'.join(lines)
+    
+    # Fix sentence structure: join lines that are clearly part of the same sentence
+    # Only join when the next line starts with lowercase (continuation of sentence)
+    # OR when current line ends with continuation punctuation (comma, dash, etc.)
+    
+    fixed_lines = []
+    i = 0
+    while i < len(lines):
+        current_line = lines[i]
+        
+        # If this is an empty line, preserve it (paragraph break)
+        if not current_line.strip():
+            fixed_lines.append(current_line)
+            i += 1
+            continue
+        
+        # Try to join with following lines that are clearly continuations
+        while i + 1 < len(lines):
+            next_line = lines[i + 1]
+            
+            # Stop if next line is empty (paragraph break)
+            if not next_line.strip():
+                break
+            
+            # Check if next line starts with lowercase (continuation)
+            next_stripped = next_line.strip()
+            starts_with_lowercase = next_stripped and next_stripped[0].islower()
+            
+            # Check if current line ends with continuation punctuation
+            ends_with_continuation = re.search(r'[,;:—–-]\s*$', current_line)
+            
+            # Only join if:
+            # 1. Next line starts with lowercase (clear continuation), OR
+            # 2. Current line ends with continuation punctuation AND next doesn't start with uppercase
+            should_join = False
+            
+            if starts_with_lowercase:
+                # Next line clearly continues the sentence
+                should_join = True
+            elif ends_with_continuation and next_stripped and not next_stripped[0].isupper():
+                # Current line has continuation punctuation and next doesn't start new sentence
+                should_join = True
+            
+            if should_join:
+                # Join with a space
+                current_line = current_line + ' ' + next_stripped
+                i += 1  # Move to next line
+            else:
+                # Don't join, stop here
+                break
+        
+        # Add the (possibly joined) line
+        fixed_lines.append(current_line)
+        i += 1
+    
+    text = '\n'.join(fixed_lines)
+    
+    # Final cleanup: remove excessive spaces
+    text = re.sub(r' +', ' ', text)
+    text = re.sub(r'\n +', '\n', text)  # Remove leading spaces after newlines
     
     return text.strip()
 
