@@ -4,17 +4,17 @@
 import os
 import sys
 import subprocess
+import tempfile
 from pathlib import Path
 from shutil import which
 
 
-def command_exists(cmd):
+def command_exists(cmd): 
     return which(cmd) is not None
 
 
 def convert_md_to_pdf(md_path, output_path=None):
     """
-    Convert a .md file to PDF using pandoc.
 
     Args:
         md_path (str | Path): Path to the .md file (relative to input folder or absolute)
@@ -54,23 +54,105 @@ def convert_md_to_pdf(md_path, output_path=None):
         return False
 
     try:
-        cmd = [
-            "pandoc",
-            str(full_input_path),
-            "-o",
-            str(full_output_path),
-            "--pdf-engine=xelatex",
+        # Preprocess markdown to handle math symbols
+        # Read the markdown file and convert Unicode math symbols to LaTeX
+        with open(full_input_path, 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        
+        import re
+        # Convert horizontal rules (---) to spacing/breaks
+        # Replace lines with exactly "---" with double newlines (paragraph break for spacing)
+        md_content = re.sub(
+            r'^---\s*$',
+            r'\n\n',
+            md_content,
+            flags=re.MULTILINE
+        )
+        
+        # Convert common Unicode math symbols to LaTeX commands
+        # Map Unicode symbols to their LaTeX equivalents
+        # Note: In regex replacement, $$ outputs a literal $, so we double the $ signs
+        symbol_replacements = [
+            (r'ε', r'$$\\varepsilon$$'),
+            (r'≈', r'$$\\approx$$'),
+            (r'α', r'$$\\alpha$$'),
+            (r'β', r'$$\\beta$$'),
+            (r'γ', r'$$\\gamma$$'),
+            (r'δ', r'$$\\delta$$'),
+            (r'θ', r'$$\\theta$$'),
+            (r'λ', r'$$\\lambda$$'),
+            (r'μ', r'$$\\mu$$'),
+            (r'σ', r'$$\\sigma$$'),
+            (r'∑', r'$$\\sum$$'),
+            (r'∫', r'$$\\int$$'),
+            (r'∞', r'$$\\infty$$'),
+            (r'±', r'$$\\pm$$'),
+            (r'≤', r'$$\\leq$$'),
+            (r'≥', r'$$\\geq$$'),
+            (r'≠', r'$$\\neq$$'),
         ]
-        print(f"Converting '{full_input_path}' to '{full_output_path}' using pandoc...")
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # Replace symbols, but avoid replacing if already in math mode
+        # Process symbols one at a time, being careful not to create invalid LaTeX
+        for symbol, replacement in symbol_replacements:
+            # Only replace if symbol is not already in a $...$ block
+            # Look for symbol that's not preceded or followed by $, and not part of a word
+            pattern = r'(?<!\$)(?<![a-zA-Z0-9])' + re.escape(symbol) + r'(?![a-zA-Z0-9])(?!\$)'
+            md_content = re.sub(pattern, replacement, md_content)
+            # Clean up any double dollar signs that might have been created
+            md_content = re.sub(r'\$\$+', r'$$', md_content)
+        
+        # Create temporary markdown file with processed content
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
+            temp_md.write(md_content)
+            temp_md_path = temp_md.name
+        
+        # Create header file with LaTeX packages for better rendering
+        # Keep it simple to avoid conflicts
+        header_content = """\\usepackage{amsmath}
+\\usepackage{amssymb}
+% Ensure horizontal rules render properly
+\\usepackage{booktabs}
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False, encoding='utf-8') as header_file:
+            header_file.write(header_content)
+            header_path = header_file.name
+        
+        try:
+            cmd = [
+                "pandoc",
+                temp_md_path,  # Use processed markdown file
+                "-o",
+                str(full_output_path),
+                "--pdf-engine=xelatex",
+                "--standalone",
+                f"--include-in-header={header_path}",
+                "--from=markdown",  # Standard markdown format
+                "--to=pdf",
+            ]
+            print(f"Converting '{full_input_path}' to '{full_output_path}' using pandoc...")
+            result = subprocess.run(cmd, capture_output=True, text=True)
+        finally:
+            # Clean up temp files
+            try:
+                os.unlink(header_path)
+                os.unlink(temp_md_path)
+            except:
+                pass
+        
         if result.returncode == 0 and full_output_path.exists():
             print(f"Successfully converted to '{full_output_path}'")
             return True
         else:
-            print(f"pandoc failed: {result.stderr.strip() if result.stderr else 'unknown error'}")
+            error_msg = result.stderr.strip() if result.stderr else 'unknown error'
+            if result.stdout:
+                error_msg += f"\nstdout: {result.stdout.strip()}"
+            print(f"pandoc failed: {error_msg}")
             return False
     except Exception as e:
         print(f"Unexpected error running pandoc: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
