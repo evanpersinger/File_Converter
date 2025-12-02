@@ -25,7 +25,7 @@ def setup_directories():
 
 # Convert a .txt file to PDF
 # returns True if successful, False otherwise
-def convert_txt_to_pdf(txt_path, output_path=None):
+def convert_txt_to_pdf(txt_path: str, output_path: str | None = None) -> bool:
     input_dir, output_dir = setup_directories()
 
     # if the provided path already points to a PDF let user know and return False

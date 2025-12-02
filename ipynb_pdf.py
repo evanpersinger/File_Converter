@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 
-def convert_notebook_to_pdf(notebook_path, output_path=None):
+def convert_notebook_to_pdf(notebook_path: str, output_path: str | None = None) -> bool:
     """
     Args:
         notebook_path (str): Path to the .ipynb file (relative to input folder)

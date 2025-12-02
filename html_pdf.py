@@ -13,7 +13,7 @@ def command_exists(cmd):
     return which(cmd) is not None
 
 
-def convert_html_to_pdf(html_path, output_path=None):
+def convert_html_to_pdf(html_path: str, output_path: str | None = None) -> bool:
     """
     Convert an .html file to PDF.
 

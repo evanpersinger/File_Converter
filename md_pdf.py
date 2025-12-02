@@ -13,7 +13,7 @@ def command_exists(cmd):
     return which(cmd) is not None
 
 
-def convert_md_to_pdf(md_path, output_path=None):
+def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
     """
 
     Args:

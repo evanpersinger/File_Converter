@@ -88,7 +88,7 @@ def para_to_html(para):
 
 # Convert a .docx file to PDF
 # returns True if successful, False otherwise
-def convert_docx_to_pdf(docx_path, output_path=None, input_dir=None, output_dir=None):
+def convert_docx_to_pdf(docx_path: str, output_path: str | None = None, input_dir: str | None = None, output_dir: str | None = None) -> bool:
     # Set default directories if not provided
     if input_dir is None:
         input_dir = Path("input")
