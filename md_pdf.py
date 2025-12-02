@@ -69,38 +69,35 @@ def convert_md_to_pdf(md_path, output_path=None):
             flags=re.MULTILINE
         )
         
-        # Convert common Unicode math symbols to LaTeX commands
-        # Map Unicode symbols to their LaTeX equivalents
-        # Note: In regex replacement, $$ outputs a literal $, so we double the $ signs
-        symbol_replacements = [
-            (r'ε', r'$$\\varepsilon$$'),
-            (r'≈', r'$$\\approx$$'),
-            (r'α', r'$$\\alpha$$'),
-            (r'β', r'$$\\beta$$'),
-            (r'γ', r'$$\\gamma$$'),
-            (r'δ', r'$$\\delta$$'),
-            (r'θ', r'$$\\theta$$'),
-            (r'λ', r'$$\\lambda$$'),
-            (r'μ', r'$$\\mu$$'),
-            (r'σ', r'$$\\sigma$$'),
-            (r'∑', r'$$\\sum$$'),
-            (r'∫', r'$$\\int$$'),
-            (r'∞', r'$$\\infty$$'),
-            (r'±', r'$$\\pm$$'),
-            (r'≤', r'$$\\leq$$'),
-            (r'≥', r'$$\\geq$$'),
-            (r'≠', r'$$\\neq$$'),
+        # Convert Unicode math symbols - some to LaTeX commands, some kept as Unicode in math mode
+        # Symbols that need LaTeX commands (don't render well as Unicode)
+        symbol_replacements_latex = [
+            (r'≈', r'\\approx'),
+            (r'∑', r'\\sum'),
+            (r'∫', r'\\int'),
+            (r'∞', r'\\infty'),
+            (r'±', r'\\pm'),
+            (r'≤', r'\\leq'),
+            (r'≥', r'\\geq'),
+            (r'≠', r'\\neq'),
         ]
         
-        # Replace symbols, but avoid replacing if already in math mode
-        # Process symbols one at a time, being careful not to create invalid LaTeX
-        for symbol, replacement in symbol_replacements:
-            # Only replace if symbol is not already in a $...$ block
-            # Look for symbol that's not preceded or followed by $, and not part of a word
+        # Symbols to keep as Unicode but wrap in math mode for proper rendering
+        unicode_symbols = [r'ε', r'α', r'β', r'γ', r'δ', r'θ', r'λ', r'μ', r'σ']
+        
+        # First, wrap Unicode symbols in math mode (keep the symbol, just ensure it renders)
+        for symbol in unicode_symbols:
+            # Only wrap if not already in math mode
             pattern = r'(?<!\$)(?<![a-zA-Z0-9])' + re.escape(symbol) + r'(?![a-zA-Z0-9])(?!\$)'
-            md_content = re.sub(pattern, replacement, md_content)
-            # Clean up any double dollar signs that might have been created
-            md_content = re.sub(r'\$\$+', r'$$', md_content)
+            # Wrap in inline math mode to ensure proper rendering
+            md_content = re.sub(pattern, lambda m, sym=symbol: f'${sym}$', md_content)
+        
+        # Then, convert symbols that need LaTeX commands
+        for symbol, latex_cmd in symbol_replacements_latex:
+            # Only replace if symbol is not already in a $...$ block
+            pattern = r'(?<!\$)(?<![a-zA-Z0-9])' + re.escape(symbol) + r'(?![a-zA-Z0-9])(?!\$)'
+            # Use lambda to wrap in inline math mode ($...$)
+            md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
         
         # Create temporary markdown file with processed content
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
@@ -111,6 +108,7 @@ def convert_md_to_pdf(md_path, output_path=None):
         # Keep it simple to avoid conflicts
         header_content = """\\usepackage{amsmath}
 \\usepackage{amssymb}
+\\usepackage{fontspec}
 % Ensure horizontal rules render properly
 \\usepackage{booktabs}
 """
