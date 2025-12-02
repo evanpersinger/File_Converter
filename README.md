@@ -1,8 +1,50 @@
 # File Converter
 
-Simple scripts to convert files between different formats.
+Simple scripts to convert files between different formats. Includes an AI agent for interactive file conversion.
+
+## Quick Start
+
+### AI Agent (Interactive Conversion)
+Use the AI agent to convert files through natural language:
+
+```bash
+python agent.py
+```
+
+Then ask it to convert files:
+- "Convert mock1.md to PDF"
+- "What files are in the input folder?"
+- "Convert all Word documents to PDF"
+
+The agent can use all conversion functions directly.
+
+### Individual Scripts
+Each script can be run independently for specific conversions (see details below).
 
 ## Scripts
+
+### agent.py
+AI-powered file conversion agent that can convert files through natural language interaction.
+
+**Usage:**
+```bash
+python agent.py
+```
+
+**Python packages (versions from requirements.txt):**
+- agents==1.4.0
+- openai==1.75.0
+
+**Features:**
+- Interactive conversation interface
+- Natural language file conversion requests
+- Direct access to all conversion functions
+- Web search capability for additional information
+
+**Example interactions:**
+- "Convert mock1.md to PDF"
+- "List all files in the input folder"
+- "What conversions are supported?"
 
 ### xlsx_csv.py
 Converts Excel (.xlsx) to CSV (.csv).
@@ -60,12 +102,12 @@ python openai_pdf_md.py
 pip install vision-parse python-dotenv
 ```
 
-### ss_text.py
-Converts screenshots and images to text using OCR (Optical Character Recognition).
+### ss_txt.py
+Converts screenshots and images to text using OCR (Optical Character Recognition). Optimized for plain text extraction.
 
 **Usage:**
 ```bash
-python ss_text.py
+python ss_txt.py
 ```
 
 **Python packages (versions from requirements.txt):**
@@ -89,9 +131,39 @@ pip install pytesseract pillow
 
 **How it works:**
 1. Automatically processes ALL images in the `input/` folder
-2. Extracts text using OCR
-3. Saves text files to the `output/` folder
-4. Shows summary of successful/failed conversions
+2. Preprocesses images for better OCR accuracy
+3. Extracts text using OCR with proper sentence structure
+4. Fixes random line breaks and preserves sentence flow
+5. Saves combined text to `output/all_extracted_text_combined.txt`
+
+**Features:**
+- Image preprocessing for better accuracy
+- Sentence structure preservation
+- Automatic line break fixing
+
+### ss_txt2.py
+Advanced screenshot to text converter optimized for tables, shapes, and structured content.
+
+**Usage:**
+```bash
+python ss_txt2.py
+```
+
+**Python packages (versions from requirements.txt):**
+- pytesseract==0.3.13
+- pillow==11.3.0
+- opencv-python==4.12.0.88
+- numpy==2.2.5
+
+**System requirements:**
+- Tesseract OCR (macOS: `brew install tesseract`)
+
+**Features:**
+- Table detection and extraction
+- Shape detection
+- Structured content recognition
+- Better handling of complex layouts
+- Saves to `output/all_extracted_structured_text.txt`
 
 ### ipynb_pdf.py
 Converts Jupyter notebooks (.ipynb) to PDF files.
@@ -140,7 +212,7 @@ jupyter nbconvert --to webpdf --output output/NAME.pdf input/NAME.ipynb
 ```
 
 ### md_pdf.py
-Converts Markdown (.md) files to PDF using Pandoc.
+Converts Markdown (.md) files to PDF using Pandoc with enhanced math symbol and formatting support.
 
 **Usage:**
 ```bash
@@ -154,6 +226,13 @@ python md_pdf.py file.md [output.pdf]
 **System requirements:**
 - Pandoc (macOS: `brew install pandoc`)
 - LaTeX engine (XeLaTeX recommended) for PDF generation (macOS: `brew install --cask mactex`)
+
+**Features:**
+- **Unicode math symbols**: Properly renders symbols like ε (epsilon), α, β, γ, etc.
+- **Horizontal rules**: Converts `---` to proper spacing/breaks
+- **LaTeX math support**: Converts complex math symbols to LaTeX commands
+- **Inline math mode**: Keeps math symbols on the same line as text
+- **Font support**: Uses fontspec for proper Unicode rendering
 
 ### html_pdf.py
 Converts HTML files to PDF. Prefers `wkhtmltopdf`; falls back to `pandoc` if unavailable.
@@ -410,31 +489,79 @@ python combine_files.py
 converter/
 ├── input/              # Put your source files here
 ├── output/             # Converted files will appear here
+├── agent.py            # AI agent for interactive file conversion
 ├── xlsx_csv.py         # Excel to CSV converter
 ├── pdf_md.py           # PDF to Markdown converter (basic + OCR)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
-├── ss_text.py          # Screenshot to text converter (OCR)
+├── ss_txt.py           # Screenshot to text converter (OCR, plain text)
+├── ss_txt2.py          # Screenshot to text converter (OCR, structured content)
 ├── ipynb_pdf.py        # Jupyter notebook to PDF converter
-├── md_pdf.py           # Markdown to PDF converter (Pandoc)
+├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
 ├── png_pdf.py          # PNG to PDF converter
 ├── combine_files.py    # File combiner (PDFs, images, text)
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
-├── docx_pdf.py        # Word to PDF converter
+├── docx_pdf.py         # Word to PDF converter
 ├── R_Rmd.py            # R to R Markdown converter
 ├── Rmd_pdf.py          # R Markdown to PDF converter
 ├── sql_pdf.py          # SQL to PDF converter
 ├── txt_pdf.py          # TXT to PDF converter
-├── requirements.txt
-└── .env                # Store your OpenAI API key here
+├── requirements.txt    # Python package dependencies
+└── .env                # Store your OpenAI API key here (optional)
 ```
 
-## How to Use
-1. **Create the required folders** (if they don't exist):
+## Installation
+
+1. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Create the required folders** (if they don't exist):
    ```bash
    mkdir input output
    ```
-2. Put your files in the `input` folder
-3. Run the appropriate script
+
+3. **Install system dependencies** (as needed):
+   - Tesseract OCR: `brew install tesseract` (for OCR features)
+   - Pandoc: `brew install pandoc` (for markdown/HTML conversions)
+   - LaTeX: `brew install --cask mactex` (for PDF generation)
+   - LibreOffice: `brew install --cask libreoffice` (for PowerPoint conversion)
+
+4. **Optional: Set up OpenAI API key** (for `openai_pdf_md.py`):
+   ```bash
+   # Create .env file
+   echo "OPENAI_API_KEY=your_api_key_here" > .env
+   ```
+
+## How to Use
+
+### Using the AI Agent (Recommended)
+1. Put your files in the `input` folder
+2. Run: `python agent.py`
+3. Ask the agent to convert files using natural language
 4. Find converted files in the `output` folder
+
+### Using Individual Scripts
+1. Put your files in the `input` folder
+2. Run the appropriate conversion script
+3. Find converted files in the `output` folder
+
+## Supported Conversions
+
+| From | To | Script |
+|------|-----|--------|
+| Markdown (.md) | PDF | `md_pdf.py` |
+| PDF | Markdown (.md) | `pdf_md.py` |
+| Word (.docx) | PDF | `docx_pdf.py` |
+| PowerPoint (.pptx) | PDF | `pptx_pdf.py` |
+| Excel (.xlsx) | CSV | `xlsx_csv.py` |
+| HTML | PDF | `html_pdf.py` |
+| Text (.txt) | PDF | `txt_pdf.py` |
+| SQL | PDF | `sql_pdf.py` |
+| Jupyter Notebook (.ipynb) | PDF | `ipynb_pdf.py` |
+| Images (JPG/PNG) | PDF | `jpg_pdf.py`, `png_pdf.py` |
+| Images (screenshots) | Text | `ss_txt.py`, `ss_txt2.py` |
+| R (.R) | R Markdown (.Rmd) | `R_Rmd.py` |
+| R Markdown (.Rmd) | PDF | `Rmd_pdf.py` |
