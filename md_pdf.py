@@ -61,6 +61,104 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             md_content = f.read()
         
         import re
+        # Convert \[...\] to $$...$$ for better pandoc compatibility
+        # This handles display math blocks more reliably
+        md_content = re.sub(r'\\\[', '$$', md_content)
+        md_content = re.sub(r'\\\]', '$$', md_content)
+        
+        # Replace em-dashes globally (they can break LaTeX rendering)
+        md_content = md_content.replace('—', '-').replace('–', '-')
+        
+        # Normalize table spacing: fix spacing around | pipes while preserving cell content
+        # This is necessary because inconsistent spacing can break pandoc's table parser
+        lines = md_content.split('\n')
+        cleaned_lines = []
+        
+        # Track table context to detect problematic header rows
+        prev_line_was_table = False
+        prev_cell_count = 0
+        
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            # Check if this is a table row
+            if stripped.startswith('|') and '|' in stripped[1:]:
+                # Check if separator row
+                is_separator = bool(re.match(r'^\|\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', stripped))
+                
+                if is_separator:
+                    # Normalize separator row spacing
+                    parts = stripped.split('|')
+                    cells = []
+                    for part in parts[1:-1]:  # Skip first and last empty parts
+                        # Get the separator content (hyphens/colons)
+                        sep_content = re.sub(r'[^\-\:]', '', part)  # Keep only - and :
+                        if not sep_content:
+                            sep_content = '---'
+                        cells.append(sep_content)
+                    # Rejoin with consistent spacing: | --- | --- |
+                    cleaned_line = '| ' + ' | '.join(cells) + ' |'
+                    cleaned_lines.append(cleaned_line)
+                    prev_cell_count = len(cells)
+                    prev_line_was_table = True
+                else:
+                    # Regular table row: normalize spacing around pipes, preserve cell content
+                    parts = stripped.split('|')
+                    cells = []
+                    for part in parts[1:-1]:  # Skip first and last empty parts
+                        # Strip whitespace but preserve empty cells as empty strings
+                        cell_content = part.strip()
+                        # Protect negative numbers from line breaks by wrapping in mbox
+                        # This prevents LaTeX from breaking "-47" across lines
+                        # Split by $ to handle math mode separately
+                        parts_math = cell_content.split('$')
+                        protected_parts = []
+                        for j, part in enumerate(parts_math):
+                            if j % 2 == 0:
+                                # Not in math mode - protect negative numbers
+                                part = re.sub(r'(-\d+)', r'\\mbox{\1}', part)
+                            protected_parts.append(part)
+                        cell_content = '$'.join(protected_parts)
+                        cells.append(cell_content)
+                    
+                    # Convert spanning header rows to centered captions above the table
+                    # These break table parsing when they have fewer cells than the main table
+                    # (e.g., "|          | Bolt |" with only 2 cells when table has 7 columns)
+                    if len(cells) <= 3 and i + 1 < len(lines):  # Allow up to 3 cells for spanning headers
+                        next_stripped = lines[i + 1].strip()
+                        # If next line is a proper table row (has more cells), convert this to a caption
+                        if next_stripped.startswith('|') and '|' in next_stripped[1:]:
+                            next_parts = next_stripped.split('|')
+                            next_cells = [p.strip() for p in next_parts[1:-1]]
+                            if len(next_cells) > len(cells) + 1:  # Next row has significantly more cells
+                                # This is a spanning header - extract all non-empty text
+                                header_parts = [c for c in cells if c.strip()]
+                                if header_parts:
+                                    header_text = ' '.join(header_parts)
+                                    # Add as a centered caption/header above the table
+                                    # Use LaTeX centering with proper character escaping
+                                    # Escape special LaTeX characters
+                                    escaped_header = header_text.replace('\\', '\\textbackslash{}')
+                                    escaped_header = escaped_header.replace('{', '\\{').replace('}', '\\}')
+                                    escaped_header = escaped_header.replace('&', '\\&').replace('%', '\\%')
+                                    escaped_header = escaped_header.replace('$', '\\$').replace('#', '\\#')
+                                    escaped_header = escaped_header.replace('^', '\\textasciicircum{}')
+                                    escaped_header = escaped_header.replace('_', '\\_').replace('~', '\\textasciitilde{}')
+                                    cleaned_lines.append(f'\\begin{{center}}\\textbf{{{escaped_header}}}\\end{{center}}')
+                                    cleaned_lines.append("")
+                                prev_line_was_table = False
+                                continue
+                    
+                    # Rejoin with consistent spacing: | cell | cell |
+                    cleaned_line = '| ' + ' | '.join(cells) + ' |'
+                    cleaned_lines.append(cleaned_line)
+                    prev_cell_count = len(cells)
+                    prev_line_was_table = True
+            else:
+                cleaned_lines.append(line)
+                prev_line_was_table = False
+        
+        md_content = '\n'.join(cleaned_lines)
+        
         # Convert horizontal rules (---) to spacing/breaks
         # Replace lines with exactly "---" with double newlines (paragraph break for spacing)
         md_content = re.sub(
@@ -129,8 +227,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             md_content = re.sub(pattern_after_math, lambda m, cmd=latex_cmd: f'{m.group(1)} ${cmd}$', md_content)
             
             # Clean up any nested math blocks that might have been created
-            # Replace $$...$$ with $...$ (fix double dollar signs)
-            md_content = re.sub(r'\$\$([^$]+)\$\$', r'$\1$', md_content)
+            # But preserve $$...$$ for display math (don't convert to $...$)
         
         # Create temporary markdown file with processed content
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
@@ -143,6 +240,18 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 \\usepackage{fontspec}
 % Ensure horizontal rules render properly
 \\usepackage{booktabs}
+\\usepackage{longtable}
+\\usepackage{array}
+% Better table column alignment
+\\usepackage{tabularx}
+% Prevent line breaks in table cells with math
+\\usepackage{makecell}
+% Auto-adjust column widths to prevent wrapping
+\\usepackage{adjustbox}
+\\usepackage{colortbl}
+% Set table column width handling
+\\setlength{\\tabcolsep}{6pt}
+\\renewcommand{\\arraystretch}{1.2}
 """
         with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False, encoding='utf-8') as header_file:
             header_file.write(header_content)
@@ -157,7 +266,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                 "--pdf-engine=xelatex",
                 "--standalone",
                 f"--include-in-header={header_path}",
-                "--from=markdown+tex_math_dollars",  # Enable math with $...$ syntax
+                "--from=markdown+tex_math_dollars+pipe_tables+raw_html+raw_tex",  # Enable math, pipe tables, raw HTML, and raw LaTeX
                 "--to=pdf",
             ]
             print(f"Converting '{full_input_path}' to '{full_output_path}' .")
