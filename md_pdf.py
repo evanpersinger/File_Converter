@@ -9,6 +9,7 @@ from pathlib import Path
 from shutil import which
 
 
+# verify that a command exists before processing
 def command_exists(cmd): 
     return which(cmd) is not None
 
@@ -69,43 +70,74 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             flags=re.MULTILINE
         )
         
+        # Handle variables with bars (x̄, ȳ, z̄, etc.) - convert to LaTeX \bar{x}
+        # Pattern matches letter followed by combining macron (U+0304)
+        md_content = re.sub(
+            r'([a-zA-Z])\u0304',  # letter + combining macron
+            r'$\\bar{\1}$',
+            md_content
+        )
+        
+        # Also handle precomposed characters if they exist (x̄ as single character)
+        # Convert x̄, ȳ, z̄, etc. to LaTeX \bar{x}
+        bar_variables = {
+            'x̄': r'$\\bar{x}$',
+            'ȳ': r'$\\bar{y}$',
+            'z̄': r'$\\bar{z}$',
+            'X̄': r'$\\bar{X}$',
+            'Ȳ': r'$\\bar{Y}$',
+            'Z̄': r'$\\bar{Z}$',
+        }
+        for var, latex in bar_variables.items():
+            # Replace if not already in math mode
+            pattern = r'(?<!\$)' + re.escape(var) + r'(?!\$)'
+            md_content = re.sub(pattern, latex, md_content)
+        
         # Convert Unicode math symbols - some to LaTeX commands, some kept as Unicode in math mode
         # Symbols that need LaTeX commands (don't render well as Unicode)
+        # Use double backslash in raw strings to get single backslash in the actual string
         symbol_replacements_latex = [
-            (r'≈', r'\\approx'),
             (r'∑', r'\\sum'),
             (r'∫', r'\\int'),
             (r'∞', r'\\infty'),
-            (r'±', r'\\pm'),
-            (r'≤', r'\\leq'),
-            (r'≥', r'\\geq'),
             (r'≠', r'\\neq'),
         ]
         
         # Symbols to keep as Unicode but wrap in math mode for proper rendering
-        unicode_symbols = [r'ε', r'α', r'β', r'γ', r'δ', r'θ', r'λ', r'μ', r'σ']
+        # Note: ≤, ≥, ±, and ≈ work better as Unicode symbols in math mode than as LaTeX commands
+        unicode_symbols = [r'ε', r'α', r'β', r'γ', r'δ', r'θ', r'λ', r'μ', r'σ', r'≤', r'≥', r'±', r'≈']
         
         # First, wrap Unicode symbols in math mode (keep the symbol, just ensure it renders)
+        # Less restrictive pattern to catch symbols in parentheses and other contexts
         for symbol in unicode_symbols:
-            # Only wrap if not already in math mode
-            pattern = r'(?<!\$)(?<![a-zA-Z0-9])' + re.escape(symbol) + r'(?![a-zA-Z0-9])(?!\$)'
+            # Only wrap if not already in math mode - allow symbols in parentheses and other contexts
+            pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
             # Wrap in inline math mode to ensure proper rendering
             md_content = re.sub(pattern, lambda m, sym=symbol: f'${sym}$', md_content)
         
         # Then, convert symbols that need LaTeX commands
+        # Process symbols that should always be in math mode
         for symbol, latex_cmd in symbol_replacements_latex:
-            # Only replace if symbol is not already in a $...$ block
-            pattern = r'(?<!\$)(?<![a-zA-Z0-9])' + re.escape(symbol) + r'(?![a-zA-Z0-9])(?!\$)'
-            # Use lambda to wrap in inline math mode ($...$)
+            # Replace symbol if not immediately preceded or followed by $ (simple check)
+            # This catches symbols in text like "P(X ≤ 3)" or "160 ≤ X"
+            pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
             md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
+            
+            # Handle edge case: symbol appears right after closing $ (like $\bar{x}$ ± z)
+            # Replace $...$symbol with $...$ $symbol$ (separate math blocks)
+            pattern_after_math = r'(\$[^$]+\$)\s*' + re.escape(symbol) + r'(?!\$)'
+            md_content = re.sub(pattern_after_math, lambda m, cmd=latex_cmd: f'{m.group(1)} ${cmd}$', md_content)
+            
+            # Clean up any nested math blocks that might have been created
+            # Replace $$...$$ with $...$ (fix double dollar signs)
+            md_content = re.sub(r'\$\$([^$]+)\$\$', r'$\1$', md_content)
         
         # Create temporary markdown file with processed content
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
             temp_md.write(md_content)
             temp_md_path = temp_md.name
         
-        # Create header file with LaTeX packages for better rendering
-        # Keep it simple to avoid conflicts
+        # Create header file with LaTeX packages for better rendering of certain math symbols
         header_content = """\\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{fontspec}
@@ -125,10 +157,10 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                 "--pdf-engine=xelatex",
                 "--standalone",
                 f"--include-in-header={header_path}",
-                "--from=markdown",  # Standard markdown format
+                "--from=markdown+tex_math_dollars",  # Enable math with $...$ syntax
                 "--to=pdf",
             ]
-            print(f"Converting '{full_input_path}' to '{full_output_path}' using pandoc...")
+            print(f"Converting '{full_input_path}' to '{full_output_path}' .")
             result = subprocess.run(cmd, capture_output=True, text=True)
         finally:
             # Clean up temp files

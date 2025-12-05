@@ -228,11 +228,15 @@ python md_pdf.py file.md [output.pdf]
 - LaTeX engine (XeLaTeX recommended) for PDF generation (macOS: `brew install --cask mactex`)
 
 **Features:**
-- **Unicode math symbols**: Properly renders symbols like ε (epsilon), α, β, γ, etc.
+- **Unicode math symbols**: Properly renders Unicode symbols in math mode:
+  - Greek letters: ε (epsilon), α (alpha), β (beta), γ (gamma), δ (delta), θ (theta), λ (lambda), μ (mu), σ (sigma)
+  - Comparison operators: ≤ (less than or equal), ≥ (greater than or equal)
+  - Other symbols: ± (plus-minus), ≈ (approximately equal)
+- **LaTeX math commands**: Converts complex symbols to LaTeX commands:
+  - ∑ (sum), ∫ (integral), ∞ (infinity), ≠ (not equal)
 - **Horizontal rules**: Converts `---` to proper spacing/breaks
-- **LaTeX math support**: Converts complex math symbols to LaTeX commands
 - **Inline math mode**: Keeps math symbols on the same line as text
-- **Font support**: Uses fontspec for proper Unicode rendering
+- **Font support**: Uses fontspec and amssymb for proper Unicode and LaTeX symbol rendering
 
 ### html_pdf.py
 Converts HTML files to PDF. Prefers `wkhtmltopdf`; falls back to `pandoc` if unavailable.
@@ -547,6 +551,13 @@ converter/
 1. Put your files in the `input` folder
 2. Run the appropriate conversion script
 3. Find converted files in the `output` folder
+
+### File Overwriting
+**Important:** Converting the same file multiple times will automatically overwrite the existing output file. For example:
+- First conversion: `mock2.md` → `output/mock2.pdf` (creates new file)
+- Second conversion: `mock2.md` → `output/mock2.pdf` (overwrites the existing PDF)
+
+This means you can update your source file and convert it again to get an updated PDF without needing to delete the old one first.
 
 ## Supported Conversions
 
