@@ -65,6 +65,9 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         # This handles display math blocks more reliably
         md_content = re.sub(r'\\\[', '$$', md_content)
         md_content = re.sub(r'\\\]', '$$', md_content)
+        # Convert \(...\) to $...$ for inline math
+        md_content = re.sub(r'\\\(', '$', md_content)
+        md_content = re.sub(r'\\\)', '$', md_content)
         
         # Replace em-dashes globally (they can break LaTeX rendering)
         md_content = md_content.replace('—', '-').replace('–', '-')
