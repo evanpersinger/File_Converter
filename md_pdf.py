@@ -74,14 +74,30 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         lines = md_content.split('\n')
         cleaned_lines = []
         
-        # Track table context to detect problematic header rows
+        # Track table context to detect problematic header rows and add space before tables
         prev_line_was_table = False
         prev_cell_count = 0
+        in_table = False
         
         for i, line in enumerate(lines):
             stripped = line.strip()
             # Check if this is a table row
             if stripped.startswith('|') and '|' in stripped[1:]:
+                # If this is the start of a new table (not already in one), add space before it
+                if not in_table and not prev_line_was_table:
+                    # Count columns to estimate if it's a wide table that might need a new page
+                    parts = stripped.split('|')
+                    cell_count = len([p for p in parts[1:-1] if p.strip() or True])
+                    # If table has many columns (like Question 2 with 12 columns), add newpage
+                    if cell_count > 8:
+                        cleaned_lines.append("\\newpage")
+                        cleaned_lines.append("")
+                    else:
+                        # For smaller tables, just add some vertical space
+                        cleaned_lines.append("\\vspace{0.5cm}")
+                        cleaned_lines.append("")
+                    in_table = True
+                
                 # Check if separator row
                 is_separator = bool(re.match(r'^\|\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', stripped))
                 
@@ -155,6 +171,9 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     prev_line_was_table = True
             else:
                 cleaned_lines.append(line)
+                # If we were in a table and now we're not, reset the flag
+                if in_table and not stripped.startswith('|'):
+                    in_table = False
                 prev_line_was_table = False
         
         md_content = '\n'.join(cleaned_lines)
@@ -240,7 +259,6 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 \\usepackage{fontspec}
 % Ensure horizontal rules render properly
 \\usepackage{booktabs}
-\\usepackage{longtable}
 \\usepackage{array}
 % Better table column alignment
 \\usepackage{tabularx}
@@ -252,6 +270,10 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 % Set table column width handling
 \\setlength{\\tabcolsep}{6pt}
 \\renewcommand{\\arraystretch}{1.2}
+% Prevent page breaks within tables - keep tables together
+\\usepackage{float}
+% Configure table placement to avoid page breaks (H = here, don't float)
+\\floatplacement{table}{H}
 """
         with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False, encoding='utf-8') as header_file:
             header_file.write(header_content)
