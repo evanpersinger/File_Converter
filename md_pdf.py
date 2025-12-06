@@ -280,14 +280,67 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             (r'≠', r'\\neq'),
         ]
         
+        # Convert Unicode subscripts to LaTeX subscripts before processing Greek letters
+        # This ensures θ₀ becomes $\theta_0$ instead of $θ$₀
+        subscript_map = {
+            '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3', '₄': '_4', '₅': '_5',
+            '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
+            'ₐ': '_a', 'ₑ': '_e', 'ₕ': '_h', 'ᵢ': '_i', 'ⱼ': '_j', 'ₖ': '_k',
+            'ₗ': '_l', 'ₘ': '_m', 'ₙ': '_n', 'ₒ': '_o', 'ₚ': '_p', 'ᵣ': '_r',
+            'ₛ': '_s', 'ₜ': '_t', 'ᵤ': '_u', 'ᵥ': '_v', 'ₓ': '_x', 'ᵧ': '_y', 'ᵦ': '_z'
+        }
+        
+        # Greek letter to LaTeX command mapping
+        greek_to_latex = {
+            'θ': r'\theta', 'ε': r'\varepsilon', 'α': r'\alpha', 'β': r'\beta',
+            'γ': r'\gamma', 'δ': r'\delta', 'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma',
+            'Θ': r'\Theta', 'Ε': r'\Epsilon', 'Α': r'\Alpha', 'Β': r'\Beta',
+            'Γ': r'\Gamma', 'Δ': r'\Delta', 'Λ': r'\Lambda', 'Μ': r'\Mu', 'Σ': r'\Sigma'
+        }
+        
+        # Convert patterns like θ₀, θ₁, x₁, etc. to LaTeX
+        # Match: letter/Greek + subscript, not already in math mode
+        for subscript_unicode, subscript_latex in subscript_map.items():
+            # Match any letter (including Greek) followed by subscript
+            pattern = r'(?<!\$)([a-zA-Zα-ωΑ-Ωθε])(?<!\\\\)' + re.escape(subscript_unicode) + r'(?!\$)'
+            def replace_with_subscript(match):
+                base_char = match.group(1)
+                latex_base = greek_to_latex.get(base_char, base_char)
+                return f'${latex_base}{subscript_latex}$'
+            md_content = re.sub(pattern, replace_with_subscript, md_content)
+        
+        # Convert standalone Greek letters to LaTeX commands (not already in math from subscripts)
+        # Convert ε to \varepsilon (or \epsilon), and other Greek letters
+        greek_standalone = {
+            'ε': r'\varepsilon',  # Use \varepsilon for epsilon
+            'θ': r'\theta',
+            'α': r'\alpha', 'β': r'\beta', 'γ': r'\gamma', 'δ': r'\delta',
+            'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma'
+        }
+        for greek_char, latex_cmd in greek_standalone.items():
+            # Only convert if not already in math mode
+            pattern = r'(?<!\$)' + re.escape(greek_char) + r'(?!\$)'
+            md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
+        
+        # Combine adjacent math expressions that were just created (e.g., θ₀ + θ₁x becomes one block)
+        # Match: $...$ followed by space/operator and $...$
+        while True:
+            combined = re.sub(
+                r'\$([^$]+)\$\s*([+\-=])\s*\$([^$]+)\$',
+                r'$\1 \2 \3$',
+                md_content
+            )
+            if combined == md_content:
+                break
+            md_content = combined
+        
         # Symbols to keep as Unicode but wrap in math mode for proper rendering
         # Note: ≤, ≥, ±, and ≈ work better as Unicode symbols in math mode than as LaTeX commands
-        unicode_symbols = [r'ε', r'α', r'β', r'γ', r'δ', r'θ', r'λ', r'μ', r'σ', r'≤', r'≥', r'±', r'≈']
+        unicode_symbols = [r'≤', r'≥', r'±', r'≈']
         
-        # First, wrap Unicode symbols in math mode (keep the symbol, just ensure it renders)
-        # Less restrictive pattern to catch symbols in parentheses and other contexts
+        # Wrap remaining Unicode symbols in math mode (but skip if already in math from above)
         for symbol in unicode_symbols:
-            # Only wrap if not already in math mode - allow symbols in parentheses and other contexts
+            # Only wrap if not already in math mode
             pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
             # Wrap in inline math mode to ensure proper rendering
             md_content = re.sub(pattern, lambda m, sym=symbol: f'${sym}$', md_content)
