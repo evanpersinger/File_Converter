@@ -16,13 +16,9 @@ def command_exists(cmd):
 
 def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
     """
-
     Args:
         md_path (str | Path): Path to the .md file (relative to input folder or absolute)
         output_path (str | Path | None): Desired output PDF filename. If None, uses input stem + .pdf
-
-    Returns:
-        bool: True if conversion successful, False otherwise
     """
     
     input_dir = Path("input")
@@ -62,15 +58,30 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         
         import re
         # Convert \[...\] to $$...$$ for better pandoc compatibility
-        # This handles display math blocks more reliably
-        md_content = re.sub(r'\\\[', '$$', md_content)
-        md_content = re.sub(r'\\\]', '$$', md_content)
-        # Convert \(...\) to $...$ for inline math
-        md_content = re.sub(r'\\\(', '$', md_content)
-        md_content = re.sub(r'\\\)', '$', md_content)
+        # raw_tex doesn't always handle \[...\] correctly, so convert to $$...$$
+        # Match pairs properly to avoid breaking existing $$...$$ blocks
+        def convert_display_math(match):
+            content = match.group(1)
+            return f'$${content}$$'
+        # Pattern: \[ followed by content until \], handling escaped characters
+        md_content = re.sub(r'\\\[([^\\]*(?:\\.[^\\]*)*?)\\\]', convert_display_math, md_content)
+        # Convert \(...\) to $...$ for inline math (only matched pairs)
+        # This ensures we don't create unmatched delimiters
+        # Match \( followed by content until \), handling escaped characters
+        def convert_math(match):
+            content = match.group(1)
+            return f'${content}$'
+        # Pattern: \( followed by any chars (including escaped ones) until \)
+        md_content = re.sub(r'\\\(([^\\]*(?:\\.[^\\]*)*?)\\\)', convert_math, md_content)
         
         # Replace em-dashes globally (they can break LaTeX rendering)
         md_content = md_content.replace('—', '-').replace('–', '-')
+        
+        # Ensure lists are properly formatted - add blank line before lists if missing
+        # This helps pandoc recognize lists correctly (especially after text like "where:")
+        md_content = re.sub(r'([^\n])\n(- )', r'\1\n\n\2', md_content)
+        md_content = re.sub(r'([^\n])\n(\* )', r'\1\n\n\2', md_content)
+        md_content = re.sub(r'([^\n])\n(\d+\. )', r'\1\n\n\2', md_content)
         
         # Normalize table spacing: fix spacing around | pipes while preserving cell content
         # This is necessary because inconsistent spacing can break pandoc's table parser
@@ -88,17 +99,9 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             if stripped.startswith('|') and '|' in stripped[1:]:
                 # If this is the start of a new table (not already in one), add space before it
                 if not in_table and not prev_line_was_table:
-                    # Count columns to estimate if it's a wide table that might need a new page
-                    parts = stripped.split('|')
-                    cell_count = len([p for p in parts[1:-1] if p.strip() or True])
-                    # If table has many columns (like Question 2 with 12 columns), add newpage
-                    if cell_count > 8:
-                        cleaned_lines.append("\\newpage")
-                        cleaned_lines.append("")
-                    else:
-                        # For smaller tables, just add some vertical space
-                        cleaned_lines.append("\\vspace{0.5cm}")
-                        cleaned_lines.append("")
+                    # Add some vertical space before tables, but let LaTeX handle page breaks naturally
+                    cleaned_lines.append("\\vspace{0.3cm}")
+                    cleaned_lines.append("")
                     in_table = True
                 
                 # Check if separator row
@@ -126,17 +129,71 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     for part in parts[1:-1]:  # Skip first and last empty parts
                         # Strip whitespace but preserve empty cells as empty strings
                         cell_content = part.strip()
+                        # Unescape dollar signs (some markdown files have \$ instead of $)
+                        cell_content = cell_content.replace('\\$', '$')
+                        # Convert existing \(...\) to $...$ for consistent handling in table cells
+                        # Then combine adjacent $...$ expressions
+                        def convert_math_to_dollars(text):
+                            r"""Convert \(...\) to $...$ for table cells."""
+                            result = []
+                            i = 0
+                            while i < len(text):
+                                start = text.find('\\(', i)
+                                if start == -1:
+                                    result.append(text[i:])
+                                    break
+                                result.append(text[i:start])
+                                # Find matching \)
+                                depth = 0
+                                j = start + 2
+                                while j < len(text):
+                                    if j < len(text) - 1 and text[j:j+2] == '\\(':
+                                        depth += 1
+                                        j += 2
+                                    elif j < len(text) - 1 and text[j:j+2] == '\\)':
+                                        if depth == 0:
+                                            math_inner = text[start+2:j]
+                                            result.append(f'${math_inner}$')
+                                            i = j + 2
+                                            break
+                                        else:
+                                            depth -= 1
+                                            j += 2
+                                    else:
+                                        j += 1
+                                else:
+                                    result.append(text[start:])
+                                    break
+                            return ''.join(result)
+                        
+                        cell_content = convert_math_to_dollars(cell_content)
+                        # Combine adjacent math expressions separated by math operators into a single math block
+                        # This handles cases like "$d_i$ = $y_i$ - $x_i$" which should become one math block
+                        # Keep using $...$ in table cells (pandoc handles this fine)
+                        while True:
+                            # Match $...$ [operator] $...$ and combine them
+                            combined = re.sub(
+                                r'\$([^\$]+?)\$\s*([=+\-×÷≤≥≠≈±])\s*\$([^\$]+?)\$',
+                                r'$\1 \2 \3$',
+                                cell_content
+                            )
+                            if combined == cell_content:
+                                break
+                            cell_content = combined
                         # Protect negative numbers from line breaks by wrapping in mbox
                         # This prevents LaTeX from breaking "-47" across lines
-                        # Split by $ to handle math mode separately
-                        parts_math = cell_content.split('$')
+                        # Split by $...$ to separate math from non-math parts
+                        # Protect negatives only outside math
+                        parts_list = re.split(r'(\$[^\$]+\$)', cell_content)
                         protected_parts = []
-                        for j, part in enumerate(parts_math):
-                            if j % 2 == 0:
-                                # Not in math mode - protect negative numbers
-                                part = re.sub(r'(-\d+)', r'\\mbox{\1}', part)
-                            protected_parts.append(part)
-                        cell_content = '$'.join(protected_parts)
+                        for part in parts_list:
+                            if part.startswith('$') and part.endswith('$'):
+                                # This is math, keep as is
+                                protected_parts.append(part)
+                            else:
+                                # Not math, protect negative numbers
+                                protected_parts.append(re.sub(r'(-\d+)', r'\\mbox{\1}', part))
+                        cell_content = ''.join(protected_parts)
                         cells.append(cell_content)
                     
                     # Convert spanning header rows to centered captions above the table
