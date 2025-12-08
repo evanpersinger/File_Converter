@@ -314,12 +314,31 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         greek_standalone = {
             'ε': r'\varepsilon',  # Use \varepsilon for epsilon
             'θ': r'\theta',
+            'π': r'\pi',  # Add pi
             'α': r'\alpha', 'β': r'\beta', 'γ': r'\gamma', 'δ': r'\delta',
             'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma'
         }
         for greek_char, latex_cmd in greek_standalone.items():
             # Only convert if not already in math mode
             pattern = r'(?<!\$)' + re.escape(greek_char) + r'(?!\$)'
+            md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
+        
+        # Convert additional math symbols to LaTeX commands
+        additional_symbols = {
+            '⋈': r'\bowtie',  # Bowtie/join symbol
+            '∪': r'\cup',      # Union
+            '∩': r'\cap',      # Intersection (common with union)
+            '∃': r'\exists',   # Existential quantifier
+            '∀': r'\forall',   # Universal quantifier
+            '∈': r'\in',       # Element of
+            '∉': r'\notin',    # Not element of
+            '⊆': r'\subseteq', # Subset or equal
+            '⊂': r'\subset',  # Subset
+            '∅': r'\emptyset', # Empty set
+        }
+        for symbol, latex_cmd in additional_symbols.items():
+            # Only convert if not already in math mode
+            pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
             md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
         
         # Combine adjacent math expressions that were just created (e.g., θ₀ + θ₁x becomes one block)
