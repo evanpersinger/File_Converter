@@ -294,6 +294,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         greek_to_latex = {
             'θ': r'\theta', 'ε': r'\varepsilon', 'α': r'\alpha', 'β': r'\beta',
             'γ': r'\gamma', 'δ': r'\delta', 'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma',
+            'ρ': r'\rho', 'τ': r'\tau',  # Add rho and tau
             'Θ': r'\Theta', 'Ε': r'\Epsilon', 'Α': r'\Alpha', 'Β': r'\Beta',
             'Γ': r'\Gamma', 'Δ': r'\Delta', 'Λ': r'\Lambda', 'Μ': r'\Mu', 'Σ': r'\Sigma'
         }
@@ -315,6 +316,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             'ε': r'\varepsilon',  # Use \varepsilon for epsilon
             'θ': r'\theta',
             'π': r'\pi',  # Add pi
+            'ρ': r'\rho', 'τ': r'\tau',  # Add rho and tau
             'α': r'\alpha', 'β': r'\beta', 'γ': r'\gamma', 'δ': r'\delta',
             'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma'
         }
@@ -385,6 +387,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             temp_md.write(md_content)
             temp_md_path = temp_md.name
         
+        
         # Create header file with LaTeX packages for better rendering of certain math symbols
         header_content = """\\usepackage{amsmath}
 \\usepackage{amssymb}
@@ -407,6 +410,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 % Configure table placement to avoid page breaks (H = here, don't float)
 \\floatplacement{table}{H}
 """
+
+
         with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False, encoding='utf-8') as header_file:
             header_file.write(header_content)
             header_path = header_file.name

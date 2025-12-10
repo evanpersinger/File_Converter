@@ -80,7 +80,6 @@ agent = Agent(
         function_tool(convert_txt_to_pdf),
         function_tool(convert_html_to_pdf),
         function_tool(convert_notebook_to_pdf),
-        
         ], 
     
     
@@ -98,8 +97,6 @@ agent = Agent(
         # tool use behavior controls how tool output is handled
         # "stop_on_first_tool" means the agent will stop after the first tool call
         # tool_use_behavior="stop_on_first_tool",
-        
-        
         
     ),
     
