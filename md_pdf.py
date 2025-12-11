@@ -99,8 +99,12 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             if stripped.startswith('|') and '|' in stripped[1:]:
                 # If this is the start of a new table (not already in one), add space before it
                 if not in_table and not prev_line_was_table:
-                    # Add some vertical space before tables, but let LaTeX handle page breaks naturally
-                    cleaned_lines.append("\\vspace{0.3cm}")
+                    # Add LaTeX commands to prevent page breaks and ensure table stays together
+                    # this helps prevent tables from appearing on multiple pages
+                    cleaned_lines.append("")
+                    cleaned_lines.append("\\needspace{20\\baselineskip}")
+                    cleaned_lines.append("\\nopagebreak[4]")
+                    cleaned_lines.append("\\samepage")
                     cleaned_lines.append("")
                     in_table = True
                 
@@ -230,10 +234,12 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     prev_cell_count = len(cells)
                     prev_line_was_table = True
             else:
-                cleaned_lines.append(line)
-                # If we were in a table and now we're not, reset the flag
+                # If we were in a table and now we're not, add closing LaTeX commands
                 if in_table and not stripped.startswith('|'):
+                    cleaned_lines.append("\\nopagebreak[4]")
+                    cleaned_lines.append("")
                     in_table = False
+                cleaned_lines.append(line)
                 prev_line_was_table = False
         
         md_content = '\n'.join(cleaned_lines)
@@ -388,6 +394,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             temp_md_path = temp_md.name
         
         
+        
+        
         # Create header file with LaTeX packages for better rendering of certain math symbols
         header_content = """\\usepackage{amsmath}
 \\usepackage{amssymb}
@@ -402,13 +410,26 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 % Auto-adjust column widths to prevent wrapping
 \\usepackage{adjustbox}
 \\usepackage{colortbl}
-% Set table column width handling
-\\setlength{\\tabcolsep}{6pt}
-\\renewcommand{\\arraystretch}{1.2}
 % Prevent page breaks within tables - keep tables together
 \\usepackage{float}
 % Configure table placement to avoid page breaks (H = here, don't float)
 \\floatplacement{table}{H}
+% Set table column width handling
+\\setlength{\\tabcolsep}{6pt}
+\\renewcommand{\\arraystretch}{1.2}
+% Prevent page breaks within tables - keep entire tables on one page
+\\usepackage{etoolbox}
+\\usepackage{needspace}
+% Force tables to move to next page if they don't fit - use large needspace value
+% This ensures if there's not enough space, table moves to next page
+\\preto\\table{\\needspace{20\\baselineskip}\\nopagebreak[4]\\samepage}
+\\appto\\endtable{\\nopagebreak[4]}
+% Prevent breaks in tabular environments - require significant space
+\\preto\\tabular{\\needspace{15\\baselineskip}\\nopagebreak[4]\\penalty10000\\begingroup}
+\\appto\\endtabular{\\endgroup\\penalty10000\\nopagebreak[4]}
+% Additional protection using AtBeginEnvironment
+\\AtBeginEnvironment{table}{\\needspace{20\\baselineskip}\\samepage\\nopagebreak[4]}
+\\AtEndEnvironment{table}{\\nopagebreak[4]}
 """
 
 
