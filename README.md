@@ -216,6 +216,10 @@ Converts Markdown (.md) files to PDF using Pandoc with enhanced math symbol and 
 
 **Usage:**
 ```bash
+# Convert all .md files in input/ folder
+python md_pdf.py
+
+# Convert specific file
 python md_pdf.py file.md [output.pdf]
 ```
 
@@ -229,14 +233,21 @@ python md_pdf.py file.md [output.pdf]
 
 **Features:**
 - **Unicode math symbols**: Properly renders Unicode symbols in math mode:
-  - Greek letters: ε (epsilon), α (alpha), β (beta), γ (gamma), δ (delta), θ (theta), λ (lambda), μ (mu), σ (sigma)
+  - Greek letters: ε (epsilon), α (alpha), β (beta), γ (gamma), δ (delta), θ (theta), λ (lambda), μ (mu), σ (sigma), ρ (rho), τ (tau), π (pi)
   - Comparison operators: ≤ (less than or equal), ≥ (greater than or equal)
   - Other symbols: ± (plus-minus), ≈ (approximately equal)
+  - Set theory: ∪ (union), ∩ (intersection), ∈ (element of), ∃ (exists), ∀ (for all), ⋈ (bowtie)
+- **Unicode subscripts**: Converts Unicode subscripts (₀, ₁, ₂, etc.) to LaTeX subscripts:
+  - `θ₀` → `$\theta_0$`, `x₁` → `$x_1$`, `θₙ` → `$\theta_n$`
 - **LaTeX math commands**: Converts complex symbols to LaTeX commands:
   - ∑ (sum), ∫ (integral), ∞ (infinity), ≠ (not equal)
+- **Math expression combination**: Automatically combines adjacent math expressions in table cells:
+  - `$d_i$ = $y_i$ - $x_i$` → `$d_i = y_i - x_i$`
+- **Table page break prevention**: Tables automatically move to the next page if they don't fit, preventing tables from splitting across pages
 - **Horizontal rules**: Converts `---` to proper spacing/breaks
 - **Inline math mode**: Keeps math symbols on the same line as text
 - **Font support**: Uses fontspec and amssymb for proper Unicode and LaTeX symbol rendering
+- **Display math**: Supports both `$$...$$` and `\[...\]` for display math blocks
 
 ### html_pdf.py
 Converts HTML files to PDF. Prefers `wkhtmltopdf`; falls back to `pandoc` if unavailable.
@@ -462,11 +473,18 @@ python Rmd_pdf.py file.Rmd [output.pdf]
 3. Saves PDF files to the `output/` folder
 
 ### combine_files.py
-Combines multiple files of the same type into one file. Supports PDFs, images, and text files.
+Combines multiple files into one output file. Automatically detects file types and combines accordingly.
 
 **Usage:**
 ```bash
+# Combine all files in input/ folder (auto-detects format)
 python combine_files.py
+
+# Combine specific files
+python combine_files.py file1.jpg file2.jpg
+
+# Combine with custom output name
+python combine_files.py file1.pdf file2.pdf combined.pdf
 ```
 
 **Python packages (versions from requirements.txt):**
@@ -474,19 +492,20 @@ python combine_files.py
 - pypdf==6.0.0
 
 **How it works:**
-1. Automatically detects file types in the `input/` folder
-2. Groups files by type (PDFs, images, text files)
-3. Combines each group:
-   - **PDFs** → merges into one PDF file (`combined.pdf`)
-   - **Images** (JPG, PNG, GIF, BMP) → combines into one image file (`combined_images.png` or `.jpg`)
-   - **Text files** (TXT, MD) → concatenates into one text file (`combined_text.txt`)
-4. Saves combined files to the `output/` folder
+1. Reads files from the `input/` folder (or specified files)
+2. Automatically detects file types and combines:
+   - **Images** (JPG, PNG, GIF, BMP, TIFF, WEBP) → stacks vertically into one image (`combined.jpg`)
+   - **PDFs** → merges all pages into one PDF (`combined.pdf`)
+   - **Text files** → concatenates with separators showing filenames (`combined.txt`)
+3. Saves combined file to the `output/` folder
+4. Skips system files like `.DS_Store`
 
 **Features:**
-- Automatically detects and groups files by type
+- Auto-detects output format based on input files (JPG→JPG, PDF→PDF, etc.)
 - Images are stacked vertically in a single image file
-- Text files are concatenated with file headers
-- PDFs are merged preserving all pages
+- Text files are concatenated with clear file separators
+- PDFs are merged preserving all pages in order
+- Handles mixed file types gracefully
 
 ## Folder Structure
 ```
