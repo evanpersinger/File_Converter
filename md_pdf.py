@@ -340,10 +340,11 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     return f'{latex_base}_{subscript}'
             
             # Convert underscore patterns inside math content
-            # Match: any letters/Greek/symbols + underscore + letters/numbers
-            # This works for ALL variables: SS_A, SS_B, SS_AB, B_j, p_i, T_i, β_j, TSS_ij, etc.
+            # Match: variable (letters/Greek) + underscore + subscript (letters/numbers)
+            # Be careful not to match escaped underscores or table separators
+            # Pattern: word characters + underscore + word characters, but not if underscore is escaped
             math_content = re.sub(
-                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)',
+                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)(?![|])',
                 replace_subscript,
                 math_content
             )
@@ -372,9 +373,9 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     return f'{latex_base}_{subscript}'
             
             # Convert underscore patterns inside math content
-            # Match: any letters/Greek/symbols + underscore + letters/numbers
+            # Be careful not to match table separators (|) or escaped underscores
             math_content = re.sub(
-                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)',
+                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)(?![|])',
                 replace_subscript,
                 math_content
             )
@@ -476,14 +477,21 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 \\usepackage{makecell}
 % Auto-adjust column widths to prevent wrapping
 \\usepackage{adjustbox}
+% Better column alignment - left align first column, center others
+\\newcolumntype{L}{>{\\raggedright\\arraybackslash}X}
+\\newcolumntype{C}{>{\\centering\\arraybackslash}X}
 \\usepackage{colortbl}
 % Prevent page breaks within tables - keep tables together
 \\usepackage{float}
 % Configure table placement to avoid page breaks (H = here, don't float)
 \\floatplacement{table}{H}
-% Set table column width handling
-\\setlength{\\tabcolsep}{6pt}
+% Set table column width handling - reduce spacing for better alignment
+\\setlength{\\tabcolsep}{4pt}
 \\renewcommand{\\arraystretch}{1.2}
+% Make tables fit content width better
+\\setlength{\\extrarowheight}{0pt}
+% Make tables auto-size to content instead of stretching to full width
+\\renewcommand{\\tabularxcolumn}[1]{m{#1}}
 % Prevent page breaks within tables - keep entire tables on one page
 \\usepackage{etoolbox}
 % Prevent page breaks within tables, but allow normal flow after table
