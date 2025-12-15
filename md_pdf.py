@@ -316,53 +316,72 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                 return f'${latex_base}{subscript_latex}$'
             md_content = re.sub(pattern, replace_with_subscript, md_content)
         
-        # Convert LaTeX-style subscripts (B_j, p_i, T_i, etc.) to math mode
-        # But skip if already inside math blocks (\[...\], $$...$$, $...$)
-        # This handles cases like B_j, p_i, T_i, x_i, y_j, β_j, etc.
-        def convert_underscore_subscript(match):
-            base_char = match.group(1)
-            subscript = match.group(2)
-            # Check if base character is a Greek letter
-            latex_base = greek_to_latex.get(base_char, base_char)
-            return f'${latex_base}_{{{subscript}}}$'
+        # Convert LaTeX-style subscripts (B_j, p_i, SS_A, SS_B, SS_AB, etc.) to proper LaTeX subscripts
+        # ONLY convert if they're inside math blocks (\(...\) or $$...$$)
+        # This ensures underscores in regular text (like "file_name") are left alone
+        def convert_underscore_in_math(match):
+            math_content = match.group(1)
+            # Convert underscore patterns to LaTeX subscripts within the math content
+            # Pattern: variable + underscore + subscript
+            # Matches: SS_A, SS_B, SS_AB, B_j, p_i, T_i, β_j, TSS_ij, etc.
+            def replace_subscript(m):
+                base_var = m.group(1)
+                subscript = m.group(2)
+                # Convert Greek letters in base variable to LaTeX commands
+                result = []
+                for char in base_var:
+                    latex_char = greek_to_latex.get(char, char)
+                    result.append(latex_char)
+                latex_base = ''.join(result)
+                # Return with proper LaTeX subscript (use braces for multi-character subscripts)
+                if len(subscript) > 1:
+                    return f'{latex_base}_{{{subscript}}}'
+                else:
+                    return f'{latex_base}_{subscript}'
+            
+            # Convert underscore patterns inside math content
+            # Match: any letters/Greek/symbols + underscore + letters/numbers
+            # This works for ALL variables: SS_A, SS_B, SS_AB, B_j, p_i, T_i, β_j, TSS_ij, etc.
+            math_content = re.sub(
+                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)',
+                replace_subscript,
+                math_content
+            )
+            return f'$${math_content}$$'
         
-        # First, protect math blocks by temporarily replacing them
-        # Note: \[...\] has already been converted to $$...$$ earlier, so we only need to protect $$ and $
-        math_blocks = []
-        math_block_counter = 0
+        # Convert underscore subscripts inside $$...$$ blocks (display math)
+        md_content = re.sub(r'\$\$([^$]*(?:\\.[^$]*)*?)\$\$', convert_underscore_in_math, md_content)
         
-        # Protect $$...$$ blocks (display math) - must do this before protecting $...$
-        def protect_dollar_math(match):
-            nonlocal math_block_counter
-            placeholder = f"__MATH_BLOCK_DOLLAR_{math_block_counter}__"
-            math_blocks.append(('dollar', match.group(0), placeholder))
-            math_block_counter += 1
-            return placeholder
+        # Also handle $...$ blocks (inline math) - note: \(...\) was already converted to $...$ earlier
+        def convert_underscore_in_inline_math(match):
+            math_content = match.group(1)
+            # Convert underscore patterns to LaTeX subscripts
+            def replace_subscript(m):
+                base_var = m.group(1)
+                subscript = m.group(2)
+                # Convert Greek letters in base variable to LaTeX commands
+                result = []
+                for char in base_var:
+                    latex_char = greek_to_latex.get(char, char)
+                    result.append(latex_char)
+                latex_base = ''.join(result)
+                # Return with proper LaTeX subscript
+                if len(subscript) > 1:
+                    return f'{latex_base}_{{{subscript}}}'
+                else:
+                    return f'{latex_base}_{subscript}'
+            
+            # Convert underscore patterns inside math content
+            # Match: any letters/Greek/symbols + underscore + letters/numbers
+            math_content = re.sub(
+                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)',
+                replace_subscript,
+                math_content
+            )
+            return f'${math_content}$'
         
-        # Match $$...$$ (non-greedy, handling escaped $)
-        md_content = re.sub(r'\$\$([^$]*(?:\\.[^$]*)*?)\$\$', protect_dollar_math, md_content)
-        
-        # Protect $...$ blocks (inline math) - but be careful not to match $$
-        def protect_inline_math(match):
-            nonlocal math_block_counter
-            placeholder = f"__MATH_BLOCK_INLINE_{math_block_counter}__"
-            math_blocks.append(('inline', match.group(0), placeholder))
-            math_block_counter += 1
-            return placeholder
-        
-        md_content = re.sub(r'(?<!\$)\$([^$]+?)\$(?!\$)', protect_inline_math, md_content)
-        
-        # Now convert underscore subscripts (only outside math blocks)
-        # Match: single letter (including Greek) + underscore + single letter/number
-        md_content = re.sub(
-            r'(?<![a-zA-Z0-9_])([a-zA-Zα-ωΑ-Ωθε])(?<!\\\\)_([a-zA-Z0-9])(?![a-zA-Z0-9_])',
-            convert_underscore_subscript,
-            md_content
-        )
-        
-        # Restore protected math blocks
-        for math_type, original, placeholder in reversed(math_blocks):
-            md_content = md_content.replace(placeholder, original)
+        # Convert underscore subscripts inside $...$ blocks (inline math)
+        md_content = re.sub(r'(?<!\$)\$([^$]+?)\$(?!\$)', convert_underscore_in_inline_math, md_content)
         
         # Convert standalone Greek letters to LaTeX commands (not already in math from subscripts)
         # Convert ε to \varepsilon (or \epsilon), and other Greek letters
