@@ -99,12 +99,10 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             if stripped.startswith('|') and '|' in stripped[1:]:
                 # If this is the start of a new table (not already in one), add space before it
                 if not in_table and not prev_line_was_table:
-                    # Add LaTeX commands to prevent page breaks and ensure table stays together
-                    # this helps prevent tables from appearing on multiple pages
+                    # Add LaTeX commands to prevent page breaks within table only
+                    # Don't use \samepage as it keeps content after table together too
                     cleaned_lines.append("")
-                    cleaned_lines.append("\\needspace{20\\baselineskip}")
                     cleaned_lines.append("\\nopagebreak[4]")
-                    cleaned_lines.append("\\samepage")
                     cleaned_lines.append("")
                     in_table = True
                 
@@ -236,6 +234,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             else:
                 # If we were in a table and now we're not, add closing LaTeX commands
                 if in_table and not stripped.startswith('|'):
+                    # End table protection
+                    # allow normal page breaks after table
                     cleaned_lines.append("\\nopagebreak[4]")
                     cleaned_lines.append("")
                     in_table = False
@@ -419,16 +419,15 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 \\renewcommand{\\arraystretch}{1.2}
 % Prevent page breaks within tables - keep entire tables on one page
 \\usepackage{etoolbox}
-\\usepackage{needspace}
-% Force tables to move to next page if they don't fit - use large needspace value
-% This ensures if there's not enough space, table moves to next page
-\\preto\\table{\\needspace{20\\baselineskip}\\nopagebreak[4]\\samepage}
+% Prevent page breaks within tables, but allow normal flow after table
+% Only prevents splitting within the table itself, not after it
+\\preto\\table{\\nopagebreak[4]}
 \\appto\\endtable{\\nopagebreak[4]}
-% Prevent breaks in tabular environments - require significant space
-\\preto\\tabular{\\needspace{15\\baselineskip}\\nopagebreak[4]\\penalty10000\\begingroup}
+% Prevent breaks in tabular environments - strong penalties to prevent splitting within table
+\\preto\\tabular{\\nopagebreak[4]\\penalty10000\\begingroup}
 \\appto\\endtabular{\\endgroup\\penalty10000\\nopagebreak[4]}
-% Additional protection using AtBeginEnvironment
-\\AtBeginEnvironment{table}{\\needspace{20\\baselineskip}\\samepage\\nopagebreak[4]}
+% Additional protection using AtBeginEnvironment - only within table
+\\AtBeginEnvironment{table}{\\nopagebreak[4]}
 \\AtEndEnvironment{table}{\\nopagebreak[4]}
 """
 
