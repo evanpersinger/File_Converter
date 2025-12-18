@@ -3,6 +3,7 @@
 
 import os
 import sys
+import re
 from pathlib import Path
 
 try:
@@ -21,6 +22,12 @@ except ImportError:
         PDF_LIB = 'pypdf2'
     except ImportError:
         HAS_PDF = False
+
+
+def natural_sort_key(path):
+    """Extract numbers from filename for natural sorting (Q1, Q2, Q10 instead of Q1, Q10, Q2)"""
+    return [int(text) if text.isdigit() else text.lower() 
+            for text in re.split(r'(\d+)', str(path.name))]
 
 
 def setup_directories():
@@ -222,7 +229,8 @@ def main():
     
     if len(sys.argv) < 2:
         # No args: combine all files in input/ folder (skip .DS_Store and other hidden files)
-        all_files = sorted([f for f in input_dir.iterdir() if f.is_file() and not f.name.startswith('.')])
+        all_files = sorted([f for f in input_dir.iterdir() if f.is_file() and not f.name.startswith('.')], 
+                          key=natural_sort_key)
         if not all_files:
             print("No files found in input folder")
             print("Usage: python combine_files.py [file1] [file2] ... [output_file]")
