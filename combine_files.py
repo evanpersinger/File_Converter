@@ -58,8 +58,14 @@ def combine_files(file_paths: list[str], output_path: str | None = None) -> bool
         if os.path.isabs(str(file_path)):
             full_path = Path(file_path)
         else:
-            # Remove 'input/' prefix if user included it
-            file_path_clean = str(file_path).lstrip('input/').lstrip('input\\')
+            # Remove 'input/' or 'input\' prefix if user included it
+            file_path_str = str(file_path)
+            if file_path_str.startswith('input/'):
+                file_path_clean = file_path_str[6:]  # Remove 'input/'
+            elif file_path_str.startswith('input\\'):
+                file_path_clean = file_path_str[6:]  # Remove 'input\\'
+            else:
+                file_path_clean = file_path_str
             full_path = input_dir / file_path_clean
         
         if not full_path.exists():
@@ -75,7 +81,7 @@ def combine_files(file_paths: list[str], output_path: str | None = None) -> bool
     full_input_paths = [f for f in full_input_paths if not f.name.startswith('.')]
     
     if not full_input_paths:
-        print("Error: No valid files found to combine (excluding system files)")
+        print("Error: No valid files found to combine")
         return False
     
     # Detect file types and group by type
@@ -90,16 +96,19 @@ def combine_files(file_paths: list[str], output_path: str | None = None) -> bool
     if output_path is None:
         # Auto-detect output format from input files
         if 'image' in file_types and len(file_types) == 1:
-            # All images - output as JPG
-            output_name = "combined.jpg"
+            # All images - use same format as first input file
+            first_file_ext = file_types['image'][0].suffix.lower()
+            output_name = f"combined{first_file_ext}"
             output_type = 'image'
         elif 'pdf' in file_types and len(file_types) == 1:
-            # All PDFs - output as PDF
-            output_name = "combined.pdf"
+            # All PDFs - use same format as first input file
+            first_file_ext = file_types['pdf'][0].suffix.lower()
+            output_name = f"combined{first_file_ext}"
             output_type = 'pdf'
         else:
-            # Mixed or text files - output as text
-            output_name = "combined.txt"
+            # Mixed or text files - use same format as first input file
+            first_file_ext = full_input_paths[0].suffix.lower() or '.txt'
+            output_name = f"combined{first_file_ext}"
             output_type = 'text'
     else:
         # User specified output - determine type from extension
