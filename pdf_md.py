@@ -50,7 +50,11 @@ else:
             # Method 1: Try pdfplumber (best for complex PDFs)
             try:
                 with pdfplumber.open(file) as pdf:
-                    for page in pdf.pages:
+                    for page_num, page in enumerate(pdf.pages):
+                        # Check if page has images and skip them
+                        if page.images:
+                            print(f"Page {page_num + 1}: Skipping {len(page.images)} image(s)")
+                        
                         page_text = page.extract_text()
                         if page_text:
                             text += page_text + "\n\n"
@@ -66,6 +70,10 @@ else:
                 try:
                     with pdfplumber.open(file) as pdf:
                         for page_num, page in enumerate(pdf.pages):
+                            # Check if page has images and notify
+                            if page.images:
+                                print(f"Page {page_num + 1}: Contains {len(page.images)} image(s), skipping images")
+                            
                             # Convert page to image with higher resolution
                             page_image = page.to_image(resolution=600)
                             
