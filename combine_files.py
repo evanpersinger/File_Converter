@@ -6,6 +6,9 @@ import sys
 import re
 from pathlib import Path
 
+
+
+# test if user has correct packages installed
 try:
     from PIL import Image
     HAS_PIL = True
@@ -22,6 +25,8 @@ except ImportError:
         PDF_LIB = 'pypdf2'
     except ImportError:
         HAS_PDF = False
+        
+        
 
 
 def natural_sort_key(path):
@@ -30,6 +35,7 @@ def natural_sort_key(path):
             for text in re.split(r'(\d+)', str(path.name))]
 
 
+# setup file directories
 def setup_directories():
     input_dir = Path("input")
     output_dir = Path("output")
