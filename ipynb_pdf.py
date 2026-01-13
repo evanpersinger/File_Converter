@@ -1,5 +1,5 @@
 # ipynb_pdf.py
-# Convert a Jupyter notebook to a PDF file using nbconvert
+# converts a Jupyter notebook to a PDF file using nbconvert
 
 import os
 import sys

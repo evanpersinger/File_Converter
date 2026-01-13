@@ -1,5 +1,5 @@
 # html_pdf.py
-# This script converts an HTML file to a PDF file
+# converts an HTML file to a PDF file
 
 
 import os

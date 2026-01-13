@@ -1,5 +1,5 @@
 # jpg_md.py
-# converts jpg to markdown using OCR
+# converts jpg to markdown
 
 import os
 import glob

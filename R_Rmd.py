@@ -1,5 +1,5 @@
 # R_Rmd.py
-# converts R files to R Markdown files
+# converts R to R Markdown
 
 import os
 import sys

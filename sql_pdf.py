@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-"""
-SQL to PDF Converter
+# sql_pdf.py
+# converts SQL to PDF
 
-Converts SQL files to PDF format with syntax highlighting.
-"""
 
 import os
 import sys
