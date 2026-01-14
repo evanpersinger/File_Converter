@@ -102,6 +102,10 @@ python openai_pdf_md.py
 pip install vision-parse python-dotenv
 ```
 
+**Important Note:**
+- If you combine multiple JPEG/PNG images into one large image, then convert that to PDF, the conversion to markdown can take a very long time (or fail) because OpenAI's Vision API has to process one massive image instead of multiple smaller pages.
+- **Better approach**: Convert each image to PDF individually, then combine those PDFs using `combine_files.py`, then convert to markdown. This creates a multi-page PDF that processes much faster.
+
 ### ss_txt.py
 Converts screenshots and images to text using OCR (Optical Character Recognition). Optimized for plain text extraction.
 
