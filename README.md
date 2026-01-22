@@ -31,9 +31,9 @@ AI-powered file conversion agent that can convert files through natural language
 python agent.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- agents==1.4.0
-- openai==1.75.0
+**Python packages:**
+- openai-agents>=0.5.0
+- openai>=2.7.1
 
 **Features:**
 - Interactive conversation interface
@@ -54,8 +54,8 @@ Converts Excel (.xlsx) to CSV (.csv).
 python xlsx_csv.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- pandas==2.2.3
+**Python packages:**
+- pandas>=2.2.3
 
 **How it works:**
 1. Automatically processes ALL XLSX files in the `input/` folder
@@ -70,12 +70,12 @@ Converts PDF files to Markdown format using text extraction, with optional OCR f
 python pdf_md.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- pypdf==6.0.0
-- pdfplumber==0.11.7
-- pdfminer-six==20250506
-- pytesseract==0.3.13
-- pillow==11.3.0
+**Python packages:**
+- pypdf>=6.0.0
+- pdfplumber>=0.11.7
+- pdfminer-six>=20250506
+- pytesseract>=0.3.13
+- pillow>=11.3.0
 
 **System requirements (optional for OCR):**
 - Tesseract OCR (macOS: `brew install tesseract`)
@@ -88,19 +88,17 @@ Converts PDF files to Markdown using OpenAI's Vision API for high-quality conver
 python openai_pdf_md.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- vision-parse==0.1.13
-- python-dotenv==1.1.1
-- openai==1.75.0 (installed as dependency)
+**Python packages:**
+- vision-parse>=0.1.13
+- python-dotenv>=1.1.1
+- openai>=2.7.1 (installed as dependency)
 
 **Configuration:**
 1. Create a `.env` file in the project root
 2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
 
 **Setup:**
-```bash
-pip install vision-parse python-dotenv
-```
+All dependencies are installed automatically when you run `uv pip install -e .`
 
 **Important Note:**
 - If you combine multiple JPEG/PNG images into one large image, then convert that to PDF, the conversion to markdown can take a very long time (or fail) because OpenAI's Vision API has to process one massive image instead of multiple smaller pages.
@@ -126,8 +124,8 @@ python ss_txt.py
 # Install Tesseract OCR on macOS
 brew install tesseract
 
-# Python packages are already in requirements.txt
-pip install pytesseract pillow
+# Python packages are installed via pyproject.toml
+uv pip install -e .
 ```
 
 **Supported formats:**
@@ -153,11 +151,11 @@ Advanced screenshot to text converter optimized for tables, shapes, and structur
 python ss_txt2.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- pytesseract==0.3.13
-- pillow==11.3.0
-- opencv-python==4.12.0.88
-- numpy==2.2.5
+**Python packages:**
+- pytesseract>=0.3.13
+- pillow>=11.3.0
+- opencv-python>=4.12.0.88
+- numpy>=2.2.5
 
 **System requirements:**
 - Tesseract OCR (macOS: `brew install tesseract`)
@@ -182,20 +180,22 @@ python ipynb_pdf.py notebook_name.ipynb
 python ipynb_pdf.py notebook_name.ipynb custom_output.pdf
 ```
 
-**Python packages (versions from requirements.txt):**
-- jupyter==1.1.1
-- nbconvert==7.16.6
-- nbclient==0.10.2
-- nbformat==5.10.4
-- jinja2==3.1.6
-- traitlets==5.14.3
+**Python packages:**
+- jupyter>=1.1.1
+- nbconvert>=7.16.6
+- nbclient>=0.10.2
+- nbformat>=5.10.4
+- jinja2>=3.1.6
+- traitlets>=5.14.3
 
 **System requirements:**
 - LaTeX distribution for PDF export (macOS: `brew install --cask mactex`)
 
 **Setup:**
 ```bash
-pip install jupyter nbconvert
+# Python packages installed via pyproject.toml
+uv pip install -e .
+
 # Install LaTeX on macOS
 brew install --cask mactex
 ```
@@ -227,9 +227,9 @@ python md_pdf.py
 python md_pdf.py file.md [output.pdf]
 ```
 
-**Python packages (versions from requirements.txt):**
-- nbconvert==7.16.6 (only for pandocfilters; not strictly required to run pandoc)
-- pandocfilters==1.5.1 (installed, but conversion is done by the pandoc CLI)
+**Python packages:**
+- nbconvert>=7.16.6 (only for pandocfilters; not strictly required to run pandoc)
+- pandocfilters>=1.5.1 (installed, but conversion is done by the pandoc CLI)
 
 **System requirements:**
 - Pandoc (macOS: `brew install pandoc`)
@@ -293,8 +293,8 @@ Converts PNG images to PDF files.
 python png_pdf.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- pillow==11.3.0
+**Python packages:**
+- pillow>=11.3.0
 
 **How it works:**
 1. Automatically processes ALL PNG files in the `input/` folder
@@ -341,10 +341,10 @@ python docx_pdf.py file.docx [output.pdf]
 python docx_pdf.py --input-dir myinput --output-dir myoutput
 ```
 
-**Python packages (versions from requirements.txt):**
-- reportlab==4.4.4
-- python-docx==1.1.2
-- pillow==11.3.0
+**Python packages:**
+- reportlab>=4.4.4
+- python-docx>=1.1.2
+- pillow>=11.3.0
 
 **How it works:**
 1. Automatically processes ALL DOCX files in the `input/` folder
@@ -375,8 +375,8 @@ python sql_pdf.py
 python sql_pdf.py file.sql [output.pdf]
 ```
 
-**Python packages (versions from requirements.txt):**
-- reportlab==4.4.4
+**Python packages:**
+- reportlab>=4.4.4
 
 **How it works:**
 1. Automatically processes ALL SQL files in the `input/` folder
@@ -403,8 +403,8 @@ python txt_pdf.py
 python txt_pdf.py file.txt [output.pdf]
 ```
 
-**Python packages (versions from requirements.txt):**
-- reportlab==4.4.4
+**Python packages:**
+- reportlab>=4.4.4
 
 **How it works:**
 1. Automatically processes ALL TXT files in the `input/` folder
@@ -491,9 +491,9 @@ python combine_files.py file1.jpg file2.jpg
 python combine_files.py file1.pdf file2.pdf combined.pdf
 ```
 
-**Python packages (versions from requirements.txt):**
-- pillow==11.3.0
-- pypdf==6.0.0
+**Python packages:**
+- pillow>=11.3.0
+- pypdf>=6.0.0
 
 **How it works:**
 1. Reads files from the `input/` folder (or specified files)
@@ -534,7 +534,7 @@ converter/
 ├── Rmd_pdf.py          # R Markdown to PDF converter
 ├── sql_pdf.py          # SQL to PDF converter
 ├── txt_pdf.py          # TXT to PDF converter
-├── requirements.txt    # Python package dependencies
+├── pyproject.toml      # Python package dependencies
 └── .env                # Store your OpenAI API key here (optional)
 ```
 
@@ -542,7 +542,11 @@ converter/
 
 1. **Install Python dependencies:**
    ```bash
-   pip install -r requirements.txt
+   # Using uv (recommended)
+   uv pip install -e .
+   
+   # Or using pip
+   pip install -e .
    ```
 
 2. **Create the required folders** (if they don't exist):
