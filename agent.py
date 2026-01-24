@@ -170,10 +170,15 @@ async def main():
 
 
 # run the agent
-if __name__ == "__main__":
+def run_agent():
+    """Entry point for console script."""
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, EOFError):
         print("\nSession ended")
+
+
+if __name__ == "__main__":
+    run_agent()
     
     
