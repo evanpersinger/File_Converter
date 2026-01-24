@@ -8,6 +8,10 @@ Simple scripts to convert files between different formats. Includes an AI agent 
 Use the AI agent to convert files through natural language:
 
 ```bash
+# After installation, you can use the command directly:
+file-convert-agent
+
+# Or run the script directly:
 python agent.py
 ```
 
@@ -28,6 +32,10 @@ AI-powered file conversion agent that can convert files through natural language
 
 **Usage:**
 ```bash
+# Using the installed command:
+file-convert-agent
+
+# Or run directly:
 python agent.py
 ```
 
@@ -98,7 +106,7 @@ python openai_pdf_md.py
 2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
 
 **Setup:**
-All dependencies are installed automatically when you run `uv pip install -e .`
+All dependencies are installed automatically when you run `uv sync`
 
 **Important Note:**
 - If you combine multiple JPEG/PNG images into one large image, then convert that to PDF, the conversion to markdown can take a very long time (or fail) because OpenAI's Vision API has to process one massive image instead of multiple smaller pages.
@@ -125,7 +133,7 @@ python ss_txt.py
 brew install tesseract
 
 # Python packages are installed via pyproject.toml
-uv pip install -e .
+uv sync
 ```
 
 **Supported formats:**
@@ -194,7 +202,7 @@ python ipynb_pdf.py notebook_name.ipynb custom_output.pdf
 **Setup:**
 ```bash
 # Python packages installed via pyproject.toml
-uv pip install -e .
+uv sync
 
 # Install LaTeX on macOS
 brew install --cask mactex
@@ -538,12 +546,16 @@ converter/
 └── .env                # Store your OpenAI API key here (optional)
 ```
 
+## Requirements
+
+- **Python:** 3.11 or higher
+
 ## Installation
 
 1. **Install Python dependencies:**
    ```bash
    # Using uv (recommended)
-   uv pip install -e .
+   uv sync
    
    # Or using pip
    pip install -e .
@@ -560,23 +572,35 @@ converter/
    - LaTeX: `brew install --cask mactex` (for PDF generation)
    - LibreOffice: `brew install --cask libreoffice` (for PowerPoint conversion)
 
-4. **Optional: Set up OpenAI API key** (for `openai_pdf_md.py`):
+4. **Optional: Set up OpenAI API key** (for `openai_pdf_md.py` and `agent.py`):
    ```bash
    # Create .env file
    echo "OPENAI_API_KEY=your_api_key_here" > .env
    ```
 
+## Keeping Up to Date
+
+To keep your environment synchronized with the latest dependencies:
+
+```bash
+# From the project root directory
+uv sync
+
+# Or update dependencies to latest compatible versions
+uv sync --upgrade
+```
+
 ## How to Use
 
 ### Using the AI Agent (Recommended)
 1. Put your files in the `input` folder
-2. Run: `python agent.py`
+2. Run: `file-convert-agent` (or `python agent.py`)
 3. Ask the agent to convert files using natural language
 4. Find converted files in the `output` folder
 
 ### Using Individual Scripts
 1. Put your files in the `input` folder
-2. Run the appropriate conversion script
+2. Run the appropriate conversion script (e.g., `python md_pdf.py`)
 3. Find converted files in the `output` folder
 
 ### File Overwriting

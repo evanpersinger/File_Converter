@@ -7,7 +7,7 @@ name = "file-converter"
 version = "1.0.0"
 description = "Simple scripts to convert files between different formats with AI agent support"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Evan"}
@@ -26,7 +26,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries",
@@ -117,33 +116,59 @@ Repository = "https://github.com/evan/converter"
 [project.scripts]
 file-convert-agent = "agent:run_agent"
 
-[tool.setuptools]
+[tool.hatch.build.targets.wheel]
 packages = []
-py-modules = [
-    "agent",
-    "combine_files",
-    "docx_pdf",
-    "html_pdf",
-    "ipynb_pdf",
-    "jpeg_pdf",
-    "jpg_md",
-    "jpg_pdf",
-    "md_pdf",
-    "openai_pdf_md",
-    "pdf_md",
-    "png_pdf",
-    "pptx_pdf",
-    "R_Rmd",
-    "Rmd_pdf",
-    "sql_pdf",
-    "ss_txt",
-    "ss_txt2",
-    "txt_pdf",
-    "xlsx_csv",
+only-include = [
+    "agent.py",
+    "combine_files.py",
+    "docx_pdf.py",
+    "html_pdf.py",
+    "ipynb_pdf.py",
+    "jpeg_pdf.py",
+    "jpg_md.py",
+    "jpg_pdf.py",
+    "md_pdf.py",
+    "openai_pdf_md.py",
+    "pdf_md.py",
+    "png_pdf.py",
+    "pptx_pdf.py",
+    "R_Rmd.py",
+    "Rmd_pdf.py",
+    "sql_pdf.py",
+    "ss_txt.py",
+    "ss_txt2.py",
+    "txt_pdf.py",
+    "xlsx_csv.py",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "agent.py",
+    "combine_files.py",
+    "docx_pdf.py",
+    "html_pdf.py",
+    "ipynb_pdf.py",
+    "jpeg_pdf.py",
+    "jpg_md.py",
+    "jpg_pdf.py",
+    "md_pdf.py",
+    "openai_pdf_md.py",
+    "pdf_md.py",
+    "png_pdf.py",
+    "pptx_pdf.py",
+    "R_Rmd.py",
+    "Rmd_pdf.py",
+    "sql_pdf.py",
+    "ss_txt.py",
+    "ss_txt2.py",
+    "txt_pdf.py",
+    "xlsx_csv.py",
+    "pyproject.toml",
+    "README.md",
+]
+
+[dependency-groups]
+dev = [
     "pytest>=7.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
@@ -151,8 +176,8 @@ dev-dependencies = [
 
 [tool.black]
 line-length = 100
-target-version = ['py310']
+target-version = ['py311']
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
