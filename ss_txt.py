@@ -22,24 +22,34 @@ def preprocess_image(image):
         image: PIL Image object
     
     Returns:
-        PIL Image: Preprocessed image
+        list: List of preprocessed PIL Images with different processing methods
     """
-    # Convert to grayscale for better OCR
-    if image.mode != 'L':
-        image = image.convert('L')
+    preprocessed_images = []
     
-    # Enhance contrast
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.5)
+    # Enhanced grayscale (original approach)
+    gray_img = image.convert('L')
+    enhancer = ImageEnhance.Contrast(gray_img)
+    gray_img = enhancer.enhance(1.5)
+    enhancer = ImageEnhance.Sharpness(gray_img)
+    gray_img = enhancer.enhance(1.2)
+    gray_img = gray_img.filter(ImageFilter.MedianFilter(size=3))
+    preprocessed_images.append(gray_img)
     
-    # Enhance sharpness
-    enhancer = ImageEnhance.Sharpness(image)
-    image = enhancer.enhance(1.2)
+    # High contrast grayscale for colored backgrounds
+    gray_high = image.convert('L')
+    enhancer = ImageEnhance.Contrast(gray_high)
+    gray_high = enhancer.enhance(2.5)
+    preprocessed_images.append(gray_high)
     
-    # Apply slight denoising
-    image = image.filter(ImageFilter.MedianFilter(size=3))
+    # Original color image (works better for colored text/backgrounds)
+    if image.mode != 'RGB':
+        color_img = image.convert('RGB')
+    else:
+        color_img = image
+    preprocessed_images.append(color_img)
     
-    return image
+    return preprocessed_images
+
 
 def clean_text(text):
     """
@@ -123,7 +133,7 @@ def clean_text(text):
 
 def convert_image_to_text(image_path):
     """
-    Convert an image file to text using OCR with preprocessing
+    Convert an image file to text using OCR with multiple preprocessing methods
     Args:
         image_path (str): Path to the input image file
     
@@ -134,16 +144,28 @@ def convert_image_to_text(image_path):
         # Open the image
         image = Image.open(image_path)
         
-        # Preprocess image for better OCR accuracy
-        processed_image = preprocess_image(image)
+        # Preprocess image with multiple methods
+        processed_images = preprocess_image(image)
         
         # OCR with better configuration for accuracy
         custom_config = r'--oem 3 --psm 6'
-        text = pytesseract.image_to_string(
-            processed_image,
-            config=custom_config,
-            lang='eng'
-        )
+        
+        # Try OCR with all preprocessing methods and combine results
+        all_texts = []
+        for processed_image in processed_images:
+            text = pytesseract.image_to_string(
+                processed_image,
+                config=custom_config,
+                lang='eng'
+            )
+            if text and text.strip():
+                all_texts.append(text)
+        
+        # Use the longest result (likely the most complete)
+        if all_texts:
+            text = max(all_texts, key=len)
+        else:
+            text = ""
         
         # Clean the extracted text
         text = clean_text(text)
