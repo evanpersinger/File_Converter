@@ -43,6 +43,13 @@ python agent.py
 - openai-agents>=0.5.0
 - openai>=2.7.1
 
+**API Key Requirements:**
+- Currently supports **OpenAI API keys only**
+- The agent uses the `openai-agents` package which is built specifically for OpenAI's API
+- Set your API key in environment variables: `export OPENAI_API_KEY=your_api_key_here`
+- Or add it to your `.env` file: `OPENAI_API_KEY=your_api_key_here`
+- Note: OpenAI-compatible APIs may work but are not officially tested
+
 **Features:**
 - Interactive conversation interface
 - Natural language file conversion requests
