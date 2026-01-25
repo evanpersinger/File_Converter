@@ -341,6 +341,55 @@ python pptx_pdf.py
 3. Saves PDF files to the `output/` folder
 4. Shows summary of successful/failed conversions
 
+### pptx_md.py
+Converts PowerPoint (.pptx) files to Markdown format.
+
+**Usage:**
+```bash
+python pptx_md.py
+```
+
+**Python packages:**
+- python-pptx>=1.0.2
+
+**How it works:**
+1. Automatically processes ALL PPTX files in the `input/` folder
+2. Extracts text from each slide and formats as markdown
+3. Each slide becomes a separate section with headers
+4. Saves markdown files to the `output/` folder
+
+**Features:**
+- Extracts all text content from slides
+- Formats slide titles as headers
+- Separates slides with horizontal rules
+- Preserves text structure and order
+
+### jpg_md.py
+Converts JPG/JPEG images to Markdown using OCR.
+
+**Usage:**
+```bash
+python jpg_md.py
+```
+
+**Python packages:**
+- pytesseract>=0.3.13
+- pillow>=11.3.0
+
+**System requirements:**
+- Tesseract OCR (macOS: `brew install tesseract`)
+
+**How it works:**
+1. Automatically processes ALL JPG/JPEG files in the `input/` folder
+2. Preprocesses images for better OCR accuracy
+3. Extracts text using OCR and formats as markdown
+4. Saves markdown files to the `output/` folder
+
+**Features:**
+- Image preprocessing for better OCR
+- Text cleaning and formatting
+- Sentence structure preservation
+
 ### docx_pdf.py
 Converts Microsoft Word (.docx) files to PDF format with proper table rendering, image extraction, and formatting preservation.
 
@@ -541,9 +590,11 @@ converter/
 ├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
+├── jpg_md.py           # JPG/JPEG to Markdown converter (OCR)
 ├── png_pdf.py          # PNG to PDF converter
 ├── combine_files.py    # File combiner (PDFs, images, text)
 ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
+├── pptx_md.py          # PowerPoint to Markdown converter
 ├── docx_pdf.py         # Word to PDF converter
 ├── R_Rmd.py            # R to R Markdown converter
 ├── Rmd_pdf.py          # R Markdown to PDF converter
@@ -625,12 +676,14 @@ This means you can update your source file and convert it again to get an update
 | PDF | Markdown (.md) | `pdf_md.py` |
 | Word (.docx) | PDF | `docx_pdf.py` |
 | PowerPoint (.pptx) | PDF | `pptx_pdf.py` |
+| PowerPoint (.pptx) | Markdown (.md) | `pptx_md.py` |
 | Excel (.xlsx) | CSV | `xlsx_csv.py` |
 | HTML | PDF | `html_pdf.py` |
 | Text (.txt) | PDF | `txt_pdf.py` |
 | SQL | PDF | `sql_pdf.py` |
 | Jupyter Notebook (.ipynb) | PDF | `ipynb_pdf.py` |
 | Images (JPG/PNG) | PDF | `jpg_pdf.py`, `png_pdf.py` |
+| Images (JPG/PNG) | Markdown (.md) | `jpg_md.py` |
 | Images (screenshots) | Text | `ss_txt.py`, `ss_txt2.py` |
 | R (.R) | R Markdown (.Rmd) | `R_Rmd.py` |
 | R Markdown (.Rmd) | PDF | `Rmd_pdf.py` |
