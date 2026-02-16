@@ -1,13 +1,20 @@
 # pdf_md.py
 # converts pdf files to markdown
+# supports both searchable PDFs and scanned image-based PDFs with OCR
 
 import os
 import glob
 import pypdf
 import pdfplumber
 import pytesseract
+import shutil
 from pdfminer.high_level import extract_text
 from PIL import Image
+
+# Dynamically find tesseract executable
+tesseract_path = shutil.which('tesseract')
+if tesseract_path:
+    pytesseract.pytesseract.pytesseract_cmd = tesseract_path
 
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +25,37 @@ output_folder = os.path.join(script_dir, 'output')
 
 # Create output folder if it doesn't exist
 os.makedirs(output_folder, exist_ok=True)
+
+
+def is_pdf_scanned(pdf_path, sample_pages=3):
+    """
+    Detect if a PDF is scanned (image-based) or searchable.
+    Returns True if PDF is likely scanned, False if searchable.
+    """
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            total_pages = len(pdf.pages)
+            pages_to_check = min(sample_pages, total_pages)
+            
+            for i in range(pages_to_check):
+                page = pdf.pages[i]
+                
+                # Try to extract text
+                text = page.extract_text()
+                
+                # If we found substantial text, it's likely searchable
+                if text and len(text.strip()) > 100:
+                    return False
+                
+                # Check if page has images (scanned PDFs usually have images)
+                if page.images:
+                    return True
+        
+        # If no text found and no images, assume scanned
+        return True
+    except Exception as e:
+        print(f"Could not determine if PDF is scanned: {e}")
+        return True  # Default to assuming it's scanned for OCR fallback
 
 # Find all .pdf files in the folder
 pdf_files = glob.glob(os.path.join(input_folder, '*.pdf'))
@@ -47,34 +85,45 @@ else:
             # Try multiple methods to extract text
             text = ""
             
-            # Method 1: Try pdfplumber (best for complex PDFs)
-            try:
-                with pdfplumber.open(file) as pdf:
-                    for page_num, page in enumerate(pdf.pages):
-                        # Check if page has images and skip them
-                        if page.images:
-                            print(f"Page {page_num + 1}: Skipping {len(page.images)} image(s)")
-                        
-                        page_text = page.extract_text()
-                        if page_text:
-                            text += page_text + "\n\n"
-                print(f"Extracted {len(text)} characters using pdfplumber")
-                if text:
-                    print(f"First 100 characters: {repr(text[:100])}")
-            except Exception as e:
-                print(f"pdfplumber failed: {e}")
+            # Detect if PDF is scanned before attempting extraction
+            is_scanned = is_pdf_scanned(file)
+            if is_scanned:
+                print(f"Detected scanned PDF: {filename}")
+            else:
+                print(f"Detected searchable PDF: {filename}")
             
-            # If no text extracted, try OCR
-            if not text.strip():
-                print("No text found, trying OCR...")
+            # Method 1: Try pdfplumber (best for complex PDFs)
+            if not is_scanned:
+                try:
+                    with pdfplumber.open(file) as pdf:
+                        for page_num, page in enumerate(pdf.pages):
+                            # Check if page has images and skip them
+                            if page.images:
+                                print(f"Page {page_num + 1}: Contains {len(page.images)} image(s)")
+                            
+                            page_text = page.extract_text()
+                            if page_text:
+                                text += page_text + "\n\n"
+                    print(f"Extracted {len(text)} characters using pdfplumber")
+                    if text:
+                        print(f"First 100 characters: {repr(text[:100])}")
+                except Exception as e:
+                    print(f"pdfplumber failed: {e}")
+            
+            # If no text extracted or PDF is scanned, try OCR
+            if not text.strip() or is_scanned:
+                if not text.strip():
+                    print("No text found in searchable format, attempting OCR...")
+                else:
+                    print("Attempting OCR for scanned PDF...")
                 try:
                     with pdfplumber.open(file) as pdf:
                         for page_num, page in enumerate(pdf.pages):
                             # Check if page has images and notify
                             if page.images:
-                                print(f"Page {page_num + 1}: Contains {len(page.images)} image(s), skipping images")
+                                print(f"Page {page_num + 1}: Contains {len(page.images)} image(s), using OCR")
                             
-                            # Convert page to image with higher resolution
+                            # Convert page to image with higher resolution for scanned PDFs
                             page_image = page.to_image(resolution=600)
                             
                             # OCR with better settings for accuracy
