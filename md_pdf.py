@@ -63,8 +63,9 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         def convert_display_math(match):
             content = match.group(1)
             return f'$${content}$$'
-        # Pattern: \[ followed by content until \], handling escaped characters
-        md_content = re.sub(r'\\\[([^\\]*(?:\\.[^\\]*)*?)\\\]', convert_display_math, md_content)
+        # Pattern: \[ followed by content until \], handling escaped characters and newlines
+        # Use [\s\S] to match everything including newlines (non-greedy match)
+        md_content = re.sub(r'\\\[([\s\S]*?)\\\]', convert_display_math, md_content)
         # Convert \(...\) to $...$ for inline math (only matched pairs)
         # This ensures we don't create unmatched delimiters
         # Match \( followed by content until \), handling escaped characters
@@ -92,9 +93,23 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         prev_line_was_table = False
         prev_cell_count = 0
         in_table = False
+        in_math_block = False  # Track if we're inside a $$...$$ block
         
         for i, line in enumerate(lines):
             stripped = line.strip()
+            # Track math blocks - if line is exactly $$, toggle state
+            if stripped == '$$':
+                in_math_block = not in_math_block
+                cleaned_lines.append(line)
+                prev_line_was_table = False
+                continue
+            
+            # Skip table processing if we're inside a math block
+            if in_math_block:
+                cleaned_lines.append(line)
+                prev_line_was_table = False
+                continue
+            
             # Check if this is a table row
             if stripped.startswith('|') and '|' in stripped[1:]:
                 # If this is the start of a new table (not already in one), add space before it
