@@ -625,7 +625,8 @@ converter/
    ```
 
 3. **Install system dependencies** (as needed):
-   - Tesseract OCR: `brew install tesseract` (for OCR features)
+   - **Tesseract OCR** (required for OCR features): `brew install tesseract`
+     - Note: This must be installed via brew, not through Python packages
    - Pandoc: `brew install pandoc` (for markdown/HTML conversions)
    - LaTeX: `brew install --cask mactex` (for PDF generation)
    - LibreOffice: `brew install --cask libreoffice` (for PowerPoint conversion)
