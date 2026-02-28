@@ -336,6 +336,9 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         # This ensures underscores in regular text (like "file_name") are left alone
         def convert_underscore_in_math(match):
             math_content = match.group(1)
+            # Fix ambiguous subscripts like k_1x which pandoc may parse as k_{1x} (double subscript).
+            # Wrapping the digit in braces (k_{1}x) makes the grouping explicit before further processing.
+            math_content = re.sub(r'_(\d)([a-zA-Z])', r'_{\1}\2', math_content)
             # Convert underscore patterns to LaTeX subscripts within the math content
             # Pattern: variable + underscore + subscript
             # Matches: SS_A, SS_B, SS_AB, B_j, p_i, T_i, β_j, TSS_ij, etc.
@@ -371,6 +374,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         # Also handle $...$ blocks (inline math) - note: \(...\) was already converted to $...$ earlier
         def convert_underscore_in_inline_math(match):
             math_content = match.group(1)
+            # Same fix as display math: prevent k_1x from becoming k_{1x}
+            math_content = re.sub(r'_(\d)([a-zA-Z])', r'_{\1}\2', math_content)
             # Convert underscore patterns to LaTeX subscripts
             def replace_subscript(m):
                 base_var = m.group(1)
