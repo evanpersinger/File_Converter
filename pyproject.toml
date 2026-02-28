@@ -124,7 +124,6 @@ only-include = [
     "docx_pdf.py",
     "html_pdf.py",
     "ipynb_pdf.py",
-    "jpeg_pdf.py",
     "jpg_md.py",
     "jpg_pdf.py",
     "md_pdf.py",
@@ -140,6 +139,7 @@ only-include = [
     "ss_txt2.py",
     "txt_pdf.py",
     "xlsx_csv.py",
+    "csv_xlsx.py",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -149,7 +149,6 @@ only-include = [
     "docx_pdf.py",
     "html_pdf.py",
     "ipynb_pdf.py",
-    "jpeg_pdf.py",
     "jpg_md.py",
     "jpg_pdf.py",
     "md_pdf.py",
@@ -165,6 +164,7 @@ only-include = [
     "ss_txt2.py",
     "txt_pdf.py",
     "xlsx_csv.py",
+    "csv_xlsx.py",
     "pyproject.toml",
     "README.md",
 ]

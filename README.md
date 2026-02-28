@@ -77,6 +77,23 @@ python xlsx_csv.py
 2. Converts Excel files to CSV format
 3. Saves CSV files to the `output/` folder
 
+### csv_xlsx.py
+Converts CSV (.csv) to Excel (.xlsx).
+
+**Usage:**
+```bash
+python csv_xlsx.py
+```
+
+**Python packages:**
+- pandas>=2.2.3
+- openpyxl>=3.1.5
+
+**How it works:**
+1. Automatically processes ALL CSV files in the `input/` folder
+2. Converts CSV files to Excel format
+3. Saves XLSX files to the `output/` folder
+
 ### pdf_md.py
 Converts PDF files to Markdown format using text extraction, with optional OCR fallback.
 
@@ -582,6 +599,7 @@ converter/
 ├── output/             # Converted files will appear here
 ├── agent.py            # AI agent for interactive file conversion
 ├── xlsx_csv.py         # Excel to CSV converter
+├── csv_xlsx.py         # CSV to Excel converter
 ├── pdf_md.py           # PDF to Markdown converter (basic + OCR)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
 ├── ss_txt.py           # Screenshot to text converter (OCR, plain text)
@@ -679,12 +697,16 @@ This means you can update your source file and convert it again to get an update
 | PowerPoint (.pptx) | PDF | `pptx_pdf.py` |
 | PowerPoint (.pptx) | Markdown (.md) | `pptx_md.py` |
 | Excel (.xlsx) | CSV | `xlsx_csv.py` |
+| CSV (.csv) | Excel (.xlsx) | `csv_xlsx.py` |
 | HTML | PDF | `html_pdf.py` |
 | Text (.txt) | PDF | `txt_pdf.py` |
 | SQL | PDF | `sql_pdf.py` |
 | Jupyter Notebook (.ipynb) | PDF | `ipynb_pdf.py` |
-| Images (JPG/PNG) | PDF | `jpg_pdf.py`, `png_pdf.py` |
-| Images (JPG/PNG) | Markdown (.md) | `jpg_md.py` |
-| Images (screenshots) | Text | `ss_txt.py`, `ss_txt2.py` |
+| JPG/JPEG images | PDF | `jpg_pdf.py` |
+| PNG images | PDF | `png_pdf.py` |
+| JPG/JPEG images | Markdown (.md) | `jpg_md.py` |
+| Screenshots/Images | Text | `ss_txt.py`, `ss_txt2.py` |
 | R (.R) | R Markdown (.Rmd) | `R_Rmd.py` |
 | R Markdown (.Rmd) | PDF | `Rmd_pdf.py` |
+| Multiple files (images/PDFs/text) | Single file | `combine_files.py` |
+| PDF (AI-powered) | Markdown (.md) | `openai_pdf_md.py` |
