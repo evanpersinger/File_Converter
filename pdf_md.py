@@ -27,6 +27,63 @@ output_folder = os.path.join(script_dir, 'output')
 os.makedirs(output_folder, exist_ok=True)
 
 
+def clean_math_text(text):
+    """
+    Clean up math notation in extracted text.
+    Handles subscripts, superscripts, square roots, and common OCR math mistakes.
+    Runs on all extracted text regardless of whether it came from OCR or pdfplumber.
+    """
+    import re
+
+    subscript_map = {
+        'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ⱼ', 'k': 'ₖ',
+        'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ', 'p': 'ₚ', 'r': 'ᵣ',
+        's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ', 'v': 'ᵥ', 'x': 'ₓ', 'y': 'ᵧ',
+        '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+        '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+    }
+    superscript_map = {
+        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+    }
+
+    # Join √ that is on its own line with the following expression
+    text = re.sub(r'√\s*\n\s*', '√', text)
+
+    # Handle explicit underscore subscript notation: F_x, x_1, x_i, etc.
+    def replace_subscript(m):
+        base, sub = m.group(1), m.group(2)
+        return base + subscript_map.get(sub, '_' + sub)
+
+    text = re.sub(r'([a-zA-Z])_([a-zA-Z0-9])', replace_subscript, text)
+
+    # Handle explicit caret superscript notation: x^2, x^n, etc.
+    def replace_superscript(m):
+        base, exp = m.group(1), m.group(2)
+        return base + superscript_map.get(exp, '^' + exp)
+
+    text = re.sub(r'([a-zA-Z])\^([0-9])', replace_superscript, text)
+
+    # Handle digit directly after a variable at end of expression: x2, n2, etc.
+    # Only convert when the digit is followed by a non-digit (space, operator, end of line)
+    for digit, superscript in superscript_map.items():
+        text = re.sub(rf'([a-zA-Z]){digit}(?=[^0-9a-zA-Z]|$)', rf'\1{superscript}', text)
+
+    # Fix sqrt notation
+    text = re.sub(r'\bsqrt\s*\(', '√(', text)
+    text = re.sub(r'\bsqrt\s+', '√', text)
+
+    # Fix em/en dashes used as minus signs
+    text = re.sub(r'—', '-', text)
+    text = re.sub(r'–', '-', text)
+
+    # Clean up excessive whitespace
+    text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)
+    text = re.sub(r' +', ' ', text)
+
+    return text
+
+
 def is_pdf_scanned(pdf_path, sample_pages=3):
     """
     Detect if a PDF is scanned (image-based) or searchable.
@@ -139,200 +196,6 @@ else:
                             if page_text.strip():
                                 text += page_text + "\n\n"
                     
-                    # Clean up extra whitespace and fix common statistics symbols
-                    if text:
-                        import re
-                        
-                        # Fix common statistics symbol OCR mistakes
-                        # Only apply these fixes when they make sense in context
-                        text = re.sub(r'\bσ\b', 'sigma', text)  # Greek sigma
-                        text = re.sub(r'\bμ\b', 'mu', text)     # Greek mu
-                        text = re.sub(r'\bα\b', 'alpha', text) # Greek alpha
-                        text = re.sub(r'\bβ\b', 'beta', text)   # Greek beta
-                        text = re.sub(r'\bχ\b', 'chi', text)   # Greek chi
-                        text = re.sub(r'\bδ\b', 'delta', text) # Greek delta
-                        
-                        # Fix common OCR mistakes for Greek letters and math symbols
-                        text = re.sub(r'\boC\b', 'σ', text)  # oC becomes σ (sigma)
-                        text = re.sub(r'\bo\b(?=\s*[=<>])', 'σ', text)  # o before = becomes σ
-                        text = re.sub(r'\bu\b(?=\s*[=<>])', 'μ', text)  # u before = becomes μ
-                        text = re.sub(r'\bπ\b', 'π', text)  # Ensure pi symbol is correct
-                        
-                        # Fix common OCR mistakes for mathematical notation
-                        text = re.sub(r'—', '-', text)  # Replace em dash with minus sign
-                        text = re.sub(r'–', '-', text)  # Replace en dash with minus sign
-                        text = re.sub(r'×', '×', text)  # Ensure multiplication symbol
-                        text = re.sub(r'÷', '÷', text)  # Ensure division symbol
-                        text = re.sub(r'±', '±', text)  # Ensure plus-minus symbol
-                        
-                        # Fix common probability notation patterns
-                        text = re.sub(r'(\d+), = (\d+),(\d+), = (\d+),(\d+), = \.(\d+)', r'π₁ = 0.\2\3, π₂ = 0.\4\5, π₃ = 0.\6', text)  # General probability pattern
-                        text = re.sub(r'(\d+), = (\d+),(\d+)', r'π₁ = 0.\2\3', text)  # Single probability pattern
-                        
-                        # Fix common fraction patterns
-                        text = re.sub(r'(\d+)/(\d+)', r'\1/\2', text)  # Ensure proper fraction formatting
-                        
-                        # Fix common mathematical operators
-                        text = re.sub(r'<=', '≤', text)  # Less than or equal
-                        text = re.sub(r'>=', '≥', text)  # Greater than or equal
-                        text = re.sub(r'!=', '≠', text)  # Not equal
-                        
-                        # Fix LaTeX-style summation notation that OCR misreads
-                        text = re.sub(r'\\sum\s*_\{i=1\}\^n', r'∑ᵢ₌₁ⁿ', text)           # \sum _{i=1}^n
-                        text = re.sub(r'\\sum\s*_\{i=0\}\^n', r'∑ᵢ₌₀ⁿ', text)           # \sum _{i=0}^n
-                        text = re.sub(r'\\sum\s*_\{i=1\}\^\{n\}', r'∑ᵢ₌₁ⁿ', text)       # \sum _{i=1}^{n}
-                        text = re.sub(r'\\sum\s*_\{i=0\}\^\{n\}', r'∑ᵢ₌₀ⁿ', text)       # \sum _{i=0}^{n}
-                        
-                        # Fix common OCR misreadings of sigma notation
-                        text = re.sub(r'sigma\s*\(i=1\s+to\s+n\)', r'∑ᵢ₌₁ⁿ', text)      # sigma (i=1 to n)
-                        text = re.sub(r'sigma\s*\(i=0\s+to\s+n\)', r'∑ᵢ₌₀ⁿ', text)      # sigma (i=0 to n)
-                        text = re.sub(r'sigma\s+from\s+i=1\s+to\s+n', r'∑ᵢ₌₁ⁿ', text)   # sigma from i=1 to n
-                        text = re.sub(r'sigma\s+from\s+i=0\s+to\s+n', r'∑ᵢ₌₀ⁿ', text)   # sigma from i=0 to n
-                        
-                        # Fix garbled summation symbols (common OCR issue)
-                        text = re.sub(r'∑[^∑]*ᵢ[^∑]*₌[^∑]*₁[^∑]*ⁿ', r'∑ᵢ₌₁ⁿ', text)  # Fix garbled summation
-                        text = re.sub(r'∑[^∑]*ᵢ[^∑]*₌[^∑]*₀[^∑]*ⁿ', r'∑ᵢ₌₀ⁿ', text)  # Fix garbled summation from 0
-                        
-                        # Fix common OCR misreadings of LaTeX notation
-                        text = re.sub(r'nN\s*Di\s*i=\]', r'∑ᵢ₌₁ⁿ', text)               # nN Di i=] → ∑ᵢ₌₁ⁿ
-                        text = re.sub(r'nN\s*Di\s*i=\[', r'∑ᵢ₌₀ⁿ', text)               # nN Di i=[ → ∑ᵢ₌₀ⁿ
-                        
-                        # Fix more common sigma notation OCR errors
-                        text = re.sub(r'sigma\s*_\{i=1\}\^n', r'∑ᵢ₌₁ⁿ', text)          # sigma_{i=1}^n
-                        text = re.sub(r'sigma\s*_\{i=0\}\^n', r'∑ᵢ₌₀ⁿ', text)          # sigma_{i=0}^n
-                        text = re.sub(r'sigma\s*_i=1\^n', r'∑ᵢ₌₁ⁿ', text)             # sigma_i=1^n
-                        text = re.sub(r'sigma\s*_i=0\^n', r'∑ᵢ₌₀ⁿ', text)             # sigma_i=0^n
-                        
-                        # Fix summation with different variable names
-                        text = re.sub(r'sigma\s*_\{j=1\}\^n', r'∑ⱼ₌₁ⁿ', text)          # sigma_{j=1}^n
-                        text = re.sub(r'sigma\s*_\{k=1\}\^n', r'∑ₖ₌₁ⁿ', text)          # sigma_{k=1}^n
-                        text = re.sub(r'sigma\s*_\{x=1\}\^n', r'∑ₓ₌₁ⁿ', text)          # sigma_{x=1}^n
-                        
-                        # Fix summation notation (sigma with limits)
-                        text = re.sub(r'sigma\s+from\s+i=(\d+)\s+to\s+(\d+)', r'∑ᵢ₌₁ⁿ', text)  # sigma from i=1 to n
-                        text = re.sub(r'sigma\s+from\s+i=0\s+to\s+(\d+)', r'∑ᵢ₌₀ⁿ', text)   # sigma from i=0 to n
-                        text = re.sub(r'sigma\s+from\s+i=1\s+to\s+n', r'∑ᵢ₌₁ⁿ', text)      # sigma from i=1 to n
-                        text = re.sub(r'sigma\s+from\s+i=0\s+to\s+n', r'∑ᵢ₌₀ⁿ', text)     # sigma from i=0 to n
-                        
-                        # Fix common OCR patterns for summation
-                        text = re.sub(r'sigma\s+\(i=1\s+to\s+n\)', r'∑ᵢ₌₁ⁿ', text)        # sigma (i=1 to n)
-                        text = re.sub(r'sigma\s+\(i=0\s+to\s+n\)', r'∑ᵢ₌₀ⁿ', text)        # sigma (i=0 to n)
-                        
-                        # Fix common OCR misreadings of sigma symbol itself
-                        text = re.sub(r'\bsigma\b', '∑', text)  # Replace "sigma" with ∑ symbol
-                        text = re.sub(r'\bSigma\b', '∑', text)  # Replace "Sigma" with ∑ symbol
-                        text = re.sub(r'\bSIGMA\b', '∑', text)  # Replace "SIGMA" with ∑ symbol
-                        
-                        # Fix OCR misreadings where sigma becomes other characters
-                        text = re.sub(r'\bs\b(?=\s*\(i=)', '∑', text)  # s (i= becomes ∑ (i=
-                        text = re.sub(r'\bs\b(?=\s*_\{i=)', '∑', text)  # s _{i= becomes ∑ _{i=
-                        text = re.sub(r'\bs\b(?=\s*from)', '∑', text)  # s from becomes ∑ from
-                        
-                        # Fix summation with different limits after sigma replacement
-                        text = re.sub(r'∑\s*\(i=1\s+to\s+n\)', r'∑ᵢ₌₁ⁿ', text)      # ∑ (i=1 to n)
-                        text = re.sub(r'∑\s*\(i=0\s+to\s+n\)', r'∑ᵢ₌₀ⁿ', text)      # ∑ (i=0 to n)
-                        text = re.sub(r'∑\s*from\s+i=1\s+to\s+n', r'∑ᵢ₌₁ⁿ', text)   # ∑ from i=1 to n
-                        text = re.sub(r'∑\s*from\s+i=0\s+to\s+n', r'∑ᵢ₌₀ⁿ', text)   # ∑ from i=0 to n
-                        
-                        # Fix subscripts and superscripts
-                        text = re.sub(r'x\^2', 'x²', text)  # x^2 becomes x²
-                        text = re.sub(r'x\^3', 'x³', text)  # x^3 becomes x³
-                        text = re.sub(r'x_2', 'x₂', text)   # x_2 becomes x₂
-                        text = re.sub(r'x_1', 'x₁', text)   # x_1 becomes x₁
-                        
-                        # Fix squared symbols for common statistics terms (more specific patterns)
-                        text = re.sub(r'σ\^2', 'σ²', text)  # σ^2 becomes σ²
-                        text = re.sub(r'σ\s+2\b', 'σ²', text)  # σ 2 becomes σ² (with word boundary)
-                        text = re.sub(r'sigma\^2', 'σ²', text)  # sigma^2 becomes σ²
-                        text = re.sub(r'sigma\s+2\b', 'σ²', text)  # sigma 2 becomes σ² (with word boundary)
-                        
-                        # Fix "standard deviation squared" specifically
-                        text = re.sub(r'standard\s+deviation\s+squared', 'σ²', text)  # standard deviation squared
-                        text = re.sub(r'standard\s+deviation\s*\^2', 'σ²', text)  # standard deviation^2
-                        text = re.sub(r'standard\s+deviation\s*2', 'σ²', text)  # standard deviation 2
-                        text = re.sub(r'std\s+dev\s+squared', 'σ²', text)  # std dev squared
-                        text = re.sub(r'std\s+dev\s*\^2', 'σ²', text)  # std dev^2
-                        text = re.sub(r'std\s+dev\s*2', 'σ²', text)  # std dev 2
-                        
-                        # Fix variance (which is standard deviation squared)
-                        text = re.sub(r'variance\s*\^2', 'σ²', text)  # variance^2
-                        text = re.sub(r'variance\s*2', 'σ²', text)  # variance 2
-                        text = re.sub(r'var\s*\^2', 'σ²', text)  # var^2
-                        text = re.sub(r'var\s*2', 'σ²', text)  # var 2
-                        
-                        # Fix population variance
-                        text = re.sub(r'population\s+variance', 'σ²', text)  # population variance
-                        text = re.sub(r'pop\s+var', 'σ²', text)  # pop var
-                        text = re.sub(r'population\s+std\s+dev\s+squared', 'σ²', text)  # population std dev squared
-                        text = re.sub(r'μ\^2', 'μ²', text)  # μ^2 becomes μ²
-                        text = re.sub(r'μ\s+2\b', 'μ²', text)  # μ 2 becomes μ² (with word boundary)
-                        text = re.sub(r'mu\^2', 'μ²', text)  # mu^2 becomes μ²
-                        text = re.sub(r'mu\s+2\b', 'μ²', text)  # mu 2 becomes μ² (with word boundary)
-                        
-                        # Fix common OCR misreadings of squared symbols
-                        text = re.sub(r'σ\s*\(2\)', 'σ²', text)  # σ (2) becomes σ²
-                        text = re.sub(r'sigma\s*\(2\)', 'σ²', text)  # sigma (2) becomes σ²
-                        text = re.sub(r'σ\s*\[2\]', 'σ²', text)  # σ [2] becomes σ²
-                        text = re.sub(r'sigma\s*\[2\]', 'σ²', text)  # sigma [2] becomes σ²
-                        
-                        # Fix squared symbols for other common variables (more specific patterns)
-                        text = re.sub(r's\^2', 's²', text)  # s^2 becomes s²
-                        text = re.sub(r's\s+2\b', 's²', text)  # s 2 becomes s² (with word boundary)
-                        text = re.sub(r'n\^2', 'n²', text)  # n^2 becomes n²
-                        text = re.sub(r'n\s+2\b', 'n²', text)  # n 2 becomes n² (with word boundary)
-                        text = re.sub(r'X\^2', 'X²', text)  # X^2 becomes X²
-                        text = re.sub(r'X\s+2\b', 'X²', text)  # X 2 becomes X² (with word boundary)
-                        text = re.sub(r'Y\^2', 'Y²', text)  # Y^2 becomes Y²
-                        text = re.sub(r'Y\s+2\b', 'Y²', text)  # Y 2 becomes Y² (with word boundary)
-                        
-                        # Fix cubed symbols for common statistics terms (more specific patterns)
-                        text = re.sub(r'σ\^3', 'σ³', text)  # σ^3 becomes σ³
-                        text = re.sub(r'σ\s+3\b', 'σ³', text)  # σ 3 becomes σ³ (with word boundary)
-                        text = re.sub(r'sigma\^3', 'σ³', text)  # sigma^3 becomes σ³
-                        text = re.sub(r'sigma\s+3\b', 'σ³', text)  # sigma 3 becomes σ³ (with word boundary)
-                        text = re.sub(r'μ\^3', 'μ³', text)  # μ^3 becomes μ³
-                        text = re.sub(r'μ\s+3\b', 'μ³', text)  # μ 3 becomes μ³ (with word boundary)
-                        text = re.sub(r'mu\^3', 'μ³', text)  # mu^3 becomes μ³
-                        text = re.sub(r'mu\s+3\b', 'μ³', text)  # mu 3 becomes μ³ (with word boundary)
-                        
-                        # Fix common OCR misreadings of cubed symbols
-                        text = re.sub(r'σ\s*\(3\)', 'σ³', text)  # σ (3) becomes σ³
-                        text = re.sub(r'sigma\s*\(3\)', 'σ³', text)  # sigma (3) becomes σ³
-                        text = re.sub(r'σ\s*\[3\]', 'σ³', text)  # σ [3] becomes σ³
-                        text = re.sub(r'sigma\s*\[3\]', 'σ³', text)  # sigma [3] becomes σ³
-                        
-                        # Fix cubed symbols for other common variables (more specific patterns)
-                        text = re.sub(r's\^3', 's³', text)  # s^3 becomes s³
-                        text = re.sub(r's\s+3\b', 's³', text)  # s 3 becomes s³ (with word boundary)
-                        text = re.sub(r'n\^3', 'n³', text)  # n^3 becomes n³
-                        text = re.sub(r'n\s+3\b', 'n³', text)  # n 3 becomes n³ (with word boundary)
-                        text = re.sub(r'X\^3', 'X³', text)  # X^3 becomes X³
-                        text = re.sub(r'X\s+3\b', 'X³', text)  # X 3 becomes X³ (with word boundary)
-                        text = re.sub(r'Y\^3', 'Y³', text)  # Y^3 becomes Y³
-                        text = re.sub(r'Y\s+3\b', 'Y³', text)  # Y 3 becomes Y³ (with word boundary)
-                        
-                        # Fix common variable subscripts and OCR misreadings
-                        text = re.sub(r'w_i', 'wᵢ', text)    # w_i becomes wᵢ
-                        text = re.sub(r'x_i', 'xᵢ', text)    # x_i becomes xᵢ
-                        text = re.sub(r'y_i', 'yᵢ', text)    # y_i becomes yᵢ
-                        text = re.sub(r'z_i', 'zᵢ', text)    # z_i becomes zᵢ
-                        
-                        
-                        # Fix common numbering issues (double periods)
-                        text = re.sub(r'(\d+)\.(\d+)\.', r'\1.\2', text)  # Fix double periods in numbering
-                        
-                        # Fix incorrect superscripts that shouldn't be there (general patterns)
-                        text = re.sub(r'(\w+)²(\s)', r'\1 2\2', text)  # Fix word² followed by space
-                        text = re.sub(r'(\w+)³(\s)', r'\1 3\2', text)  # Fix word³ followed by space
-                        text = re.sub(r'(\w+)²(\d)', r'\1 2\2', text)  # Fix word² followed by digit
-                        text = re.sub(r'(\w+)³(\d)', r'\1 3\2', text)  # Fix word³ followed by digit
-                        text = re.sub(r'(\w+)²(\.)', r'\1 2\2', text)  # Fix word² followed by period
-                        text = re.sub(r'(\w+)³(\.)', r'\1 3\2', text)  # Fix word³ followed by period
-                        
-                        # Clean up formatting
-                        text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)  # Remove excessive line breaks
-                        text = re.sub(r' +', ' ', text)  # Remove multiple spaces
-                        
                     print(f"Extracted {len(text)} characters using OCR")
                     if text:
                         print(f"First 100 characters: {repr(text[:100])}")
@@ -361,6 +224,10 @@ else:
                             print(f"pypdf also failed: {e3}")
                             text = f"Error: Could not extract text from {filename}"
             
+            # Apply math cleanup to all extracted text regardless of source
+            if text.strip():
+                text = clean_math_text(text)
+
             # Save as markdown file (plain text with markdown extension)
             try:
                 with open(md_path, 'w', encoding='utf-8') as f:
