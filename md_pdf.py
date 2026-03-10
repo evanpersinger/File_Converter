@@ -70,13 +70,23 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         # This ensures we don't create unmatched delimiters
         # Match \( followed by content until \), handling escaped characters
         def convert_math(match):
-            content = match.group(1)
+            content = match.group(1).strip()
             return f'${content}$'
         # Pattern: \( followed by any chars (including escaped ones) until \)
-        md_content = re.sub(r'\\\(([^\\]*(?:\\.[^\\]*)*?)\\\)', convert_math, md_content)
+        md_content = re.sub(r'\\\(([\s\S]*?)\\\)', convert_math, md_content)
         
         # Replace em-dashes globally (they can break LaTeX rendering)
         md_content = md_content.replace('—', '-').replace('–', '-')
+        
+        # Handle escaped dollar signs (\$...\$) used as math delimiters
+        # Some markdown sources escape $ even when used for math mode
+        # Only convert when content contains LaTeX commands (backslash)
+        def unescape_math_dollars(match):
+            content = match.group(1)
+            if '\\' in content:
+                return f'${content.strip()}$'
+            return match.group(0)
+        md_content = re.sub(r'\\\$((?:[^$])+?)\\\$', unescape_math_dollars, md_content)
         
         # Ensure lists are properly formatted - add blank line before lists if missing
         # This helps pandoc recognize lists correctly (especially after text like "where:")
@@ -475,6 +485,14 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             
             # Clean up any nested math blocks that might have been created
             # But preserve $$...$$ for display math (don't convert to $...$)
+        
+        # Final normalization: strip leading/trailing whitespace inside $...$ blocks
+        # Pandoc's tex_math_dollars requires no space after opening $ or before closing $
+        md_content = re.sub(
+            r'(?<!\$)\$([^$]+?)\$(?!\$)',
+            lambda m: f'${m.group(1).strip()}$',
+            md_content
+        )
         
         # Create temporary markdown file with processed content
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
