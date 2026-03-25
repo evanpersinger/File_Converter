@@ -94,6 +94,22 @@ python csv_xlsx.py
 2. Converts CSV files to Excel format
 3. Saves XLSX files to the `output/` folder
 
+### csv_md.py
+Converts CSV (.csv) files to Markdown (.md) tables.
+
+**Usage:**
+```bash
+python csv_md.py
+```
+
+**Python packages:**
+- None beyond the standard library
+
+**How it works:**
+1. Automatically processes ALL CSV files in the `input/` folder
+2. Converts each CSV into a Markdown table with a header row and separator row
+3. Saves markdown files to the `output/` folder
+
 ### pdf_md.py
 Converts PDF files to Markdown format using text extraction, with optional OCR fallback.
 
@@ -600,6 +616,7 @@ converter/
 ├── agent.py            # AI agent for interactive file conversion
 ├── xlsx_csv.py         # Excel to CSV converter
 ├── csv_xlsx.py         # CSV to Excel converter
+├── csv_md.py           # CSV to Markdown converter
 ├── pdf_md.py           # PDF to Markdown converter (basic + OCR)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
 ├── ss_txt.py           # Screenshot to text converter (OCR, plain text)
@@ -698,6 +715,7 @@ This means you can update your source file and convert it again to get an update
 | PowerPoint (.pptx) | Markdown (.md) | `pptx_md.py` |
 | Excel (.xlsx) | CSV | `xlsx_csv.py` |
 | CSV (.csv) | Excel (.xlsx) | `csv_xlsx.py` |
+| CSV (.csv) | Markdown (.md) | `csv_md.py` |
 | HTML | PDF | `html_pdf.py` |
 | Text (.txt) | PDF | `txt_pdf.py` |
 | SQL | PDF | `sql_pdf.py` |
