@@ -87,7 +87,15 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                 return f'${content.strip()}$'
             return match.group(0)
         md_content = re.sub(r'\\\$((?:[^$])+?)\\\$', unescape_math_dollars, md_content)
-        
+
+        # Normalize spaces after opening $ for inline math.
+        # Pandoc's tex_math_dollars extension requires $ to be immediately followed by a non-space
+        # character, otherwise it escapes $ as \$ and math commands end up outside math mode.
+        # Handles: "$ \log n$" -> "$\log n$"  |  "$ A = \frac{...}{...}$" -> "$A = \frac{...}{...}$"
+        # Note: \(...\) is already converted to $...$ above, so this covers that style too.
+        md_content = re.sub(r'(?<!\$)\$ +(?=\\[a-zA-Z])', '$', md_content)       # $ <space> \command
+        md_content = re.sub(r'(?<!\$)\$ +(?=[A-Za-z][^$\n]*(?:=|\\))', '$', md_content)  # $ <space> var=
+
         # Ensure lists are properly formatted - add blank line before lists if missing
         # This helps pandoc recognize lists correctly (especially after text like "where:")
         md_content = re.sub(r'([^\n])\n(- )', r'\1\n\n\2', md_content)

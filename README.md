@@ -160,9 +160,9 @@ Converts screenshots and images to text using OCR (Optical Character Recognition
 python ss_txt.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- pytesseract==0.3.13
-- pillow==11.3.0
+**Python packages:**
+- pytesseract>=0.3.13
+- pillow>=11.3.0
 
 **System requirements:**
 - Tesseract OCR (macOS: `brew install tesseract`)
@@ -324,8 +324,8 @@ Converts JPG/JPEG images to PDF files.
 python jpg_pdf.py
 ```
 
-**Python packages (versions from requirements.txt):**
-- pillow==11.3.0
+**Python packages:**
+- pillow>=11.3.0
 
 **How it works:**
 1. Automatically processes ALL JPG/JPEG files in the `input/` folder
