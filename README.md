@@ -316,6 +316,23 @@ python html_pdf.py file.html [output.pdf]
 - wkhtmltopdf (recommended for best HTML rendering) — macOS: `brew install wkhtmltopdf`
 - or Pandoc with LaTeX engine (fallback) — macOS: `brew install pandoc` and `brew install --cask mactex`
 
+### heic_jpg.py
+Converts HEIC images (typically from iPhone/iPad) to JPG files.
+
+**Usage:**
+```bash
+python heic_jpg.py
+```
+
+**Python packages:**
+- pillow>=11.3.0
+- pillow-heif>=0.22.0
+
+**How it works:**
+1. Automatically processes ALL HEIC files in the `input/` folder
+2. Converts images to JPG format at 95% quality
+3. Saves JPG files to the `output/` folder
+
 ### jpg_pdf.py
 Converts JPG/JPEG images to PDF files.
 
@@ -624,6 +641,7 @@ converter/
 ├── ipynb_pdf.py        # Jupyter notebook to PDF converter
 ├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
+├── heic_jpg.py         # HEIC to JPG converter
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
 ├── jpg_md.py           # JPG/JPEG to Markdown converter (OCR)
 ├── png_pdf.py          # PNG to PDF converter
@@ -720,6 +738,7 @@ This means you can update your source file and convert it again to get an update
 | Text (.txt) | PDF | `txt_pdf.py` |
 | SQL | PDF | `sql_pdf.py` |
 | Jupyter Notebook (.ipynb) | PDF | `ipynb_pdf.py` |
+| HEIC images | JPG | `heic_jpg.py` |
 | JPG/JPEG images | PDF | `jpg_pdf.py` |
 | PNG images | PDF | `png_pdf.py` |
 | JPG/JPEG images | Markdown (.md) | `jpg_md.py` |
