@@ -414,6 +414,34 @@ python pptx_md.py
 - Separates slides with horizontal rules
 - Preserves text structure and order
 
+### heic_md.py
+Converts HEIC images (typically from iPhone/iPad) to Markdown using OCR.
+
+**Usage:**
+```bash
+python heic_md.py
+```
+
+**Python packages:**
+- pytesseract>=0.3.13
+- pillow>=11.3.0
+- pillow-heif>=0.22.0
+
+**System requirements:**
+- Tesseract OCR (macOS: `brew install tesseract`)
+
+**How it works:**
+1. Automatically processes ALL HEIC files in the `input/` folder
+2. Preprocesses images in memory for better OCR accuracy
+3. Extracts text using OCR and formats as markdown
+4. Saves markdown files to the `output/` folder
+
+**Features:**
+- No intermediate JPG file saved — processes HEIC images directly in memory
+- Image preprocessing for better OCR accuracy
+- Text cleaning and formatting
+- Sentence structure preservation
+
 ### jpg_md.py
 Converts JPG/JPEG images to Markdown using OCR.
 
@@ -642,6 +670,7 @@ converter/
 ├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
 ├── heic_jpg.py         # HEIC to JPG converter
+├── heic_md.py          # HEIC to Markdown converter (OCR)
 ├── jpg_pdf.py          # JPG/JPEG to PDF converter
 ├── jpg_md.py           # JPG/JPEG to Markdown converter (OCR)
 ├── png_pdf.py          # PNG to PDF converter
@@ -739,6 +768,7 @@ This means you can update your source file and convert it again to get an update
 | SQL | PDF | `sql_pdf.py` |
 | Jupyter Notebook (.ipynb) | PDF | `ipynb_pdf.py` |
 | HEIC images | JPG | `heic_jpg.py` |
+| HEIC images | Markdown (.md) | `heic_md.py` |
 | JPG/JPEG images | PDF | `jpg_pdf.py` |
 | PNG images | PDF | `png_pdf.py` |
 | JPG/JPEG images | Markdown (.md) | `jpg_md.py` |
