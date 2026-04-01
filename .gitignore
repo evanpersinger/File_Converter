@@ -5,6 +5,7 @@ __pycache__/
 .cursorignore
 venv/
 .vscode/
+.cursor/
 
 # macOS system files
 .DS_Store
