@@ -2,16 +2,13 @@
 # converts markdown files to pdf
 
 import os
+import re
 import sys
 import subprocess
 import tempfile
+import traceback
 from pathlib import Path
 from shutil import which
-
-
-# verify that a command exists before processing
-def command_exists(cmd): 
-    return which(cmd) is not None
 
 
 def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
@@ -46,7 +43,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         pdf_name = Path(output_path).name
     full_output_path = output_dir / pdf_name
 
-    if not command_exists("pandoc"):
+    if not which("pandoc"):
         print("Error: pandoc not found. Please install pandoc to convert Markdown to PDF.")
         return False
 
@@ -56,7 +53,6 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         with open(full_input_path, 'r', encoding='utf-8') as f:
             md_content = f.read()
         
-        import re
         # Convert \[...\] to $$...$$ for better pandoc compatibility
         # raw_tex doesn't always handle \[...\] correctly, so convert to $$...$$
         # Match pairs properly to avoid breaking existing $$...$$ blocks
@@ -105,16 +101,87 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         # Normalize table spacing: fix spacing around | pipes while preserving cell content
         # This is necessary because inconsistent spacing can break pandoc's table parser
         lines = md_content.split('\n')
+
+        # Detect and wrap ASCII art / graph diagrams in code fences.
+        # This preserves spacing and alignment for diagrams that use arrows and
+        # pipe characters as structural elements (e.g. adjacency / flow graphs).
+        def is_ascii_diagram_line(ln):
+            s = ln.rstrip()
+            if not s:
+                return False
+            # Horizontal arrow patterns used in graph diagrams
+            if re.search(r'--+>|<--+', s):
+                return True
+            # Lines composed entirely of structural characters (|, ^, v, digits, spaces)
+            # e.g. "|        |         |"  or  "5        |         8"
+            structural_only = re.sub(r'[\s|^v\d]', '', s)
+            if structural_only == '' and ('|' in s or '^' in s):
+                return True
+            # Lines with only digits and spaces that use large gaps for positioning
+            # e.g. "1        6         3" — numbers spread out as edge weights in a diagram
+            if re.match(r'^[\d\s]+$', s) and re.search(r'\d\s{3,}\d', s):
+                return True
+            return False
+
+        wrapped_lines = []
+        idx = 0
+        in_fence = False
+        while idx < len(lines):
+            line = lines[idx]
+            # Track existing code fences so we don't double-wrap them
+            if line.strip().startswith('```'):
+                in_fence = not in_fence
+                wrapped_lines.append(line)
+                idx += 1
+                continue
+            if not in_fence and is_ascii_diagram_line(line):
+                # Collect the contiguous diagram block, allowing single blank lines
+                # between diagram lines (so the whole graph stays together)
+                block_start = idx
+                j = idx
+                while j < len(lines):
+                    if is_ascii_diagram_line(lines[j]):
+                        j += 1
+                    elif (not lines[j].strip()
+                          and j + 1 < len(lines)
+                          and is_ascii_diagram_line(lines[j + 1])):
+                        j += 1  # blank line bridging two diagram lines
+                    else:
+                        break
+                block = lines[block_start:j]
+                if len(block) >= 2:
+                    wrapped_lines.append('```')
+                    wrapped_lines.extend(block)
+                    wrapped_lines.append('```')
+                    idx = j
+                    continue
+            wrapped_lines.append(line)
+            idx += 1
+        lines = wrapped_lines
+
         cleaned_lines = []
         
         # Track table context to detect problematic header rows and add space before tables
         prev_line_was_table = False
-        prev_cell_count = 0
         in_table = False
         in_math_block = False  # Track if we're inside a $$...$$ block
+        in_code_block = False  # Track if we're inside a ``` code fence
         
         for i, line in enumerate(lines):
             stripped = line.strip()
+
+            # Track code fences - content inside ``` blocks must pass through untouched
+            if stripped.startswith('```'):
+                in_code_block = not in_code_block
+                cleaned_lines.append(line)
+                prev_line_was_table = False
+                continue
+
+            if in_code_block:
+                cleaned_lines.append(line)
+                prev_line_was_table = False
+                continue
+
             # Track math blocks - if line is exactly $$, toggle state
             if stripped == '$$':
                 in_math_block = not in_math_block
@@ -155,7 +222,6 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     # Rejoin with consistent spacing: | --- | --- |
                     cleaned_line = '| ' + ' | '.join(cells) + ' |'
                     cleaned_lines.append(cleaned_line)
-                    prev_cell_count = len(cells)
                     prev_line_was_table = True
                 else:
                     # Regular table row: normalize spacing around pipes, preserve cell content
@@ -262,9 +328,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     # Rejoin with consistent spacing: | cell | cell |
                     cleaned_line = '| ' + ' | '.join(cells) + ' |'
                     cleaned_lines.append(cleaned_line)
-                    prev_cell_count = len(cells)
                     prev_line_was_table = True
-            else:
+        else:
                 # If we were in a table and now we're not, add closing LaTeX commands
                 if in_table and not stripped.startswith('|'):
                     # End table protection
@@ -490,9 +555,6 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             # Replace $...$symbol with $...$ $symbol$ (separate math blocks)
             pattern_after_math = r'(\$[^$]+\$)\s*' + re.escape(symbol) + r'(?!\$)'
             md_content = re.sub(pattern_after_math, lambda m, cmd=latex_cmd: f'{m.group(1)} ${cmd}$', md_content)
-            
-            # Clean up any nested math blocks that might have been created
-            # But preserve $$...$$ for display math (don't convert to $...$)
         
         # Final normalization: strip leading/trailing whitespace inside $...$ blocks
         # Pandoc's tex_math_dollars requires no space after opening $ or before closing $
@@ -506,10 +568,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
             temp_md.write(md_content)
             temp_md_path = temp_md.name
-        
-        
-        
-        
+
         # Create header file with LaTeX packages for better rendering of certain math symbols
         header_content = """\\usepackage{amsmath}
 \\usepackage{amssymb}
@@ -557,6 +616,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             header_file.write(header_content)
             header_path = header_file.name
         
+        mermaid_filter_path = which("mermaid-filter")
+
         try:
             cmd = [
                 "pandoc",
@@ -569,6 +630,8 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                 "--from=markdown+tex_math_dollars+pipe_tables+raw_html+raw_tex",  # Enable math, pipe tables, raw HTML, and raw LaTeX
                 "--to=pdf",
             ]
+            if mermaid_filter_path:
+                cmd += ["--filter", mermaid_filter_path]
             print(f"Converting '{full_input_path}' to '{full_output_path}' .")
             result = subprocess.run(cmd, capture_output=True, text=True)
         finally:
@@ -579,6 +642,14 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             except:
                 pass
         
+        # mermaid-filter writes a .err file in the cwd; clean it up
+        err_file = Path("mermaid-filter.err")
+        if err_file.exists():
+            try:
+                err_file.unlink()
+            except Exception:
+                pass
+
         if result.returncode == 0 and full_output_path.exists():
             print(f"Successfully converted to '{full_output_path}'")
             return True
@@ -590,7 +661,6 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
             return False
     except Exception as e:
         print(f"Unexpected error running pandoc: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -624,6 +694,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 

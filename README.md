@@ -282,8 +282,22 @@ python md_pdf.py file.md [output.pdf]
 **System requirements:**
 - Pandoc (macOS: `brew install pandoc`)
 - LaTeX engine (XeLaTeX recommended) for PDF generation (macOS: `brew install --cask mactex`)
+- mermaid-filter for Mermaid diagram support (requires Node.js/npm):
+  ```bash
+  npm install -g mermaid-filter
+  ```
 
 **Features:**
+- **Mermaid diagrams**: Renders directed/undirected graphs, flowcharts, and more using Mermaid syntax:
+  ````
+  ```mermaid
+  graph LR
+      a -->|3| b
+      b -->|5| c
+  ```
+  ````
+  Supported layout directions: `LR` (left-right), `TD` (top-down), `RL`, `BT`
+- **ASCII art diagrams**: Automatically detects and preserves ASCII graph diagrams (arrows like `-->`, `<--`, pipe characters) in a monospace block so spacing is not lost
 - **Unicode math symbols**: Properly renders Unicode symbols in math mode:
   - Greek letters: ε (epsilon), α (alpha), β (beta), γ (gamma), δ (delta), θ (theta), λ (lambda), μ (mu), σ (sigma), ρ (rho), τ (tau), π (pi)
   - Comparison operators: ≤ (less than or equal), ≥ (greater than or equal)
@@ -712,6 +726,7 @@ converter/
    - Pandoc: `brew install pandoc` (for markdown/HTML conversions)
    - LaTeX: `brew install --cask mactex` (for PDF generation)
    - LibreOffice: `brew install --cask libreoffice` (for PowerPoint conversion)
+   - mermaid-filter (for Mermaid diagrams in `md_pdf.py`): `npm install -g mermaid-filter`
 
 4. **Optional: Set up OpenAI API key** (for `openai_pdf_md.py` and `agent.py`):
    ```bash
