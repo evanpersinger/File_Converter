@@ -329,7 +329,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
                     cleaned_line = '| ' + ' | '.join(cells) + ' |'
                     cleaned_lines.append(cleaned_line)
                     prev_line_was_table = True
-        else:
+            else:
                 # If we were in a table and now we're not, add closing LaTeX commands
                 if in_table and not stripped.startswith('|'):
                     # End table protection
