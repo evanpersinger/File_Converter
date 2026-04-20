@@ -26,7 +26,7 @@ if not excel_files:
     else:
         print("No Excel files found in input folder")
 else:
-    print("Found {len(excel_files)} Excel file(s)")
+    print(f"Found {len(excel_files)} Excel file(s)")
     
     for file in excel_files:
         try:
