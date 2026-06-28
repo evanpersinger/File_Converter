@@ -53,6 +53,10 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         with open(full_input_path, 'r', encoding='utf-8') as f:
             md_content = f.read()
         
+        # Replace vertical tab / form feed with newline, strip other control chars
+        md_content = md_content.replace('\x0b', '\n').replace('\x0c', '\n')
+        md_content = re.sub(r'[\x00-\x08\x0e-\x1f]', '', md_content)
+
         # Convert \[...\] to $$...$$ for better pandoc compatibility
         # raw_tex doesn't always handle \[...\] correctly, so convert to $$...$$
         # Match pairs properly to avoid breaking existing $$...$$ blocks
@@ -74,15 +78,21 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
         # Replace em-dashes globally (they can break LaTeX rendering)
         md_content = md_content.replace('—', '-').replace('–', '-')
         
-        # Handle escaped dollar signs (\$...\$) used as math delimiters
-        # Some markdown sources escape $ even when used for math mode
-        # Only convert when content contains LaTeX commands (backslash)
+        # Convert \$...\$ pairs to $...$ (some markdown tools use escaped $ as math delimiters)
         def unescape_math_dollars(match):
             content = match.group(1)
             if '\\' in content:
                 return f'${content.strip()}$'
             return match.group(0)
         md_content = re.sub(r'\\\$((?:[^$])+?)\\\$', unescape_math_dollars, md_content)
+
+        # Fallback: handle \$ used as an opening math delimiter with no closing pair.
+        # Convert \$ when it precedes a LaTeX command (e.g. \$ \log, \$ \frac)
+        md_content = re.sub(r'\\\$(\s*\\[a-zA-Z])', r'$\1', md_content)
+        # Convert \$ before a variable=math expression (e.g. \$ A = \frac{...})
+        md_content = re.sub(r'\\\$(\s*[A-Za-z]\s*=\s*\\)', r'$\1', md_content)
+        # Convert trailing \$ after typical end-of-expression characters (closing delimiter)
+        md_content = re.sub(r'(?<=[a-zA-Z0-9}])\\\$', '$', md_content)
 
         # Normalize spaces after opening $ for inline math.
         # Pandoc's tex_math_dollars extension requires $ to be immediately followed by a non-space
