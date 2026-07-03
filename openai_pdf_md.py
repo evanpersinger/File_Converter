@@ -4,7 +4,7 @@
 # Uses vision-parse library for high-quality PDF to markdown conversion
 
 
-from vision_parse import VisionParser  # Library for PDF to markdown conversion
+from vision_parse import VisionParser   # Library for PDF to markdown conversion
 from dotenv import load_dotenv          # Load environment variables from .env file
 import os                               # File system operations 
 import sys                              # System operations (for exit)
@@ -58,10 +58,9 @@ try:
     parser = VisionParser(
         model_name="gpt-4o-mini",           # OpenAI model for processing
         api_key=os.environ['OPENAI_API_KEY'], # API key from environment
-        temperature=0.7,                    # Controls randomness (0-1)
-        top_p=0.4,                          # Controls diversity of responses
+        temperature=0,                      # Deterministic, faithful extraction (no paraphrasing)
         image_mode="base64",                # Process images as base64 (more reliable than URL)
-        detailed_extraction=False,          # Basic extraction mode
+        detailed_extraction=True,           # Capture tables, equations, and complex layouts
         enable_concurrency=False,           # Disable concurrency to avoid connection issues
     )
 except Exception as e:
@@ -70,10 +69,9 @@ except Exception as e:
     parser = VisionParser(
         model_name="gpt-4o-mini",
         api_key=os.environ['OPENAI_API_KEY'],
-        temperature=0.7,
-        top_p=0.4,
+        temperature=0,
         image_mode="url",
-        detailed_extraction=False,
+        detailed_extraction=True,
         enable_concurrency=False,
     )
 
