@@ -1,7 +1,9 @@
-# openai_pdf_md.py
-# Converts PDF files to Markdown using OpenAI's Vision API
-# Requires OpenAI API key stored in .env file
-# Uses vision-parse library for high-quality PDF to markdown conversion
+"""Convert PDF files to Markdown using OpenAI's Vision API.
+
+For each .pdf in input/, sends the pages through the vision-parse library (backed by
+an OpenAI vision model) to produce high-quality markdown, retrying with backoff on
+connection errors. Writes to output/. Requires OPENAI_API_KEY in a .env file.
+"""
 
 
 from vision_parse import VisionParser   # Library for PDF to markdown conversion

@@ -1,5 +1,8 @@
-# txt_pdf.py
-# converts txt files to pdf
+"""Convert plain-text (.txt) files to PDF.
+
+For each .txt in input/ (or a file passed as an argument), builds a titled PDF with
+reportlab, one paragraph per line. Writes to output/.
+"""
 
 import os
 import sys

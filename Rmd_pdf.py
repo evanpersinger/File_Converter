@@ -1,5 +1,8 @@
-# Rmd_pdf.py
-# converts restructured markdown file to pdf file
+"""Convert R Markdown (.Rmd) files to PDF.
+
+For each .Rmd in input/ (or a file passed as an argument), substitutes Sys.Date()
+with today's date, then renders it to a PDF in output/.
+"""
 
 
 import os

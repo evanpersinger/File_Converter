@@ -1,5 +1,8 @@
-# csv_md.py
-# converts csv files to markdown
+"""Convert CSV files to Markdown tables.
+
+For each .csv in input/, reads the rows, treats the first row as the header, and
+writes a pipe-delimited Markdown table to output/.
+"""
 
 import csv
 import glob

@@ -1,5 +1,8 @@
-# sql_pdf.py
-# converts SQL to PDF
+"""Convert SQL files to PDF.
+
+For each .sql in input/, applies basic SQL keyword highlighting and lays the
+statements out as a formatted PDF with reportlab. Writes to output/.
+"""
 
 
 import os

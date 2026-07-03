@@ -1,5 +1,9 @@
-# jpg_md.py
-# converts jpg to markdown
+"""Convert JPG/JPEG images to Markdown via OCR.
+
+For each image in input/, preprocesses it (grayscale, contrast, sharpen, denoise),
+runs Tesseract OCR, cleans up the text (rejoining split sentences), and writes it
+to output/.
+"""
 
 import os
 import glob

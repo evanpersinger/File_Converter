@@ -1,5 +1,8 @@
-# docx_pdf.py
-# converts docx files to pdf
+"""Convert Word (.docx) documents to PDF.
+
+For each .docx in input/, reads the document with python-docx and rebuilds it as
+a PDF with reportlab, carrying over paragraphs, tables, and images. Writes to output/.
+"""
 
 import os
 import sys

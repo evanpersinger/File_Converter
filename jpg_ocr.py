@@ -1,5 +1,8 @@
-# jpg_ocr.py
-# converts jpg/jpeg images to text using OCR
+"""Convert JPG/JPEG images to plain text via OCR.
+
+For each image in input/, converts it to RGB, runs Tesseract OCR (through a
+temporary PNG), and writes the extracted text to output/.
+"""
 
 import os
 import glob
@@ -10,7 +13,7 @@ from PIL import Image
 # Dynamically find tesseract executable
 tesseract_path = shutil.which('tesseract')
 if tesseract_path:
-    pytesseract.pytesseract.pytesseract_cmd = tesseract_path
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
 else:
     print("Warning: tesseract not found in PATH. Make sure tesseract is installed and accessible.")
 

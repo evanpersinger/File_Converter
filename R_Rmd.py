@@ -1,5 +1,8 @@
-# R_Rmd.py
-# converts R to R Markdown
+"""Convert R scripts (.R) to R Markdown (.Rmd).
+
+For each .R file in input/, rewrites the source as an R Markdown document and writes
+the .Rmd to output/.
+"""
 
 import os
 import sys

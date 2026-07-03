@@ -1,5 +1,8 @@
-# jpg_pdf.py
-# converts jpg to pdf
+"""Convert JPG/JPEG images to PDF.
+
+For each image in input/, opens it with Pillow, converts to RGB, and saves it as a
+single-page PDF in output/.
+"""
 
 import os
 import glob

@@ -1,5 +1,8 @@
-# pptx_pdf.py
-# converts pptx to pdf
+"""Convert PowerPoint (.pptx) files to PDF.
+
+For each .pptx in input/, shells out to a headless LibreOffice (soffice) to render
+the slides to PDF in output/. Requires LibreOffice to be installed.
+"""
 
 import os
 import glob

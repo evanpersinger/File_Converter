@@ -1,5 +1,9 @@
-# html_pdf.py
-# converts an HTML file to a PDF file
+"""Convert HTML files to PDF.
+
+For each .html/.htm in input/ (or a file passed as an argument), renders it to PDF
+with wkhtmltopdf, falling back to pandoc (xelatex) if wkhtmltopdf is missing.
+Writes to output/.
+"""
 
 
 import os

@@ -1,5 +1,9 @@
-# combine_files.py
-# combines multiple files into one output file
+"""Combine multiple files into a single output file.
+
+Reads files from input/, sorts them naturally (Q1, Q2, Q10), and merges by type:
+images and PDFs are combined into one PDF, and text files are concatenated.
+Writes the combined result to output/.
+"""
 
 import os
 import sys

@@ -1,5 +1,8 @@
-# png_pdf.py
-# converts png to pdf
+"""Convert PNG images to PDF.
+
+For each .png in input/, opens it with Pillow, flattens to RGB (dropping any
+transparency), and saves it as a single-page PDF in output/.
+"""
 
 import os
 import glob

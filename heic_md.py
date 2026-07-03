@@ -1,5 +1,9 @@
-# heic_md.py
-# converts .heic images to .md using OCR
+"""Convert HEIC images to Markdown via OCR.
+
+For each .heic in input/, preprocesses the image (grayscale, contrast, sharpen,
+denoise), runs Tesseract OCR, cleans up the text (rejoining split sentences), and
+writes it to output/.
+"""
 
 import os
 import glob

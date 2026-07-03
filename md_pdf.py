@@ -1,5 +1,10 @@
-# md_pdf.py
-# converts markdown files to pdf
+"""Convert Markdown files to PDF using pandoc.
+
+For each .md in input/ (or a file passed as an argument), preprocesses the markdown
+(normalizes math notation, strips stray control characters, converts LaTeX
+display-math delimiters to $$...$$), then runs pandoc to render a PDF into output/.
+Mermaid diagram blocks are rendered via mermaid-filter.
+"""
 
 import os
 import re

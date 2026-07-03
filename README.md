@@ -111,7 +111,7 @@ python csv_md.py
 3. Saves markdown files to the `output/` folder
 
 ### pdf_md.py
-Converts PDF files to Markdown format using text extraction, with optional OCR fallback.
+Converts PDF files to Markdown. Searchable pages become real Markdown (headings, lists, tables, code) via pymupdf4llm; scanned/image pages fall back to Tesseract OCR, handled page by page so mixed PDFs work. Math notation (LaTeX `\( \)` / `$$`, super/subscripts, operators) is normalized.
 
 **Usage:**
 ```bash
@@ -119,13 +119,12 @@ python pdf_md.py
 ```
 
 **Python packages:**
-- pypdf>=6.0.0
-- pdfplumber>=0.11.7
-- pdfminer-six>=20250506
+- pymupdf4llm>=0.0.17
+- pymupdf>=1.26.4
 - pytesseract>=0.3.13
 - pillow>=11.3.0
 
-**System requirements (optional for OCR):**
+**System requirements (for OCR on scanned PDFs):**
 - Tesseract OCR (macOS: `brew install tesseract`)
 
 ### openai_pdf_md.py
@@ -660,7 +659,7 @@ converter/
 ├── xlsx_csv.py         # Excel to CSV converter
 ├── csv_xlsx.py         # CSV to Excel converter
 ├── csv_md.py           # CSV to Markdown converter
-├── pdf_md.py           # PDF to Markdown converter (basic + OCR)
+├── pdf_md.py           # PDF to Markdown converter (pymupdf4llm + OCR)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
 ├── ss_txt.py           # Screenshot to text converter (OCR; --structured for tables)
 ├── ipynb_pdf.py        # Jupyter notebook to PDF converter

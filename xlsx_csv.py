@@ -1,5 +1,7 @@
-# xlsx_csv.py
-# converts excel files to csv
+"""Convert Excel workbooks to CSV.
+
+For each .xlsx in input/, reads it with pandas and writes a .csv to output/.
+"""
 
 import pandas as pd
 import glob

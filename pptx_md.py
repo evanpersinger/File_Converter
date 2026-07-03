@@ -1,5 +1,8 @@
-# pptx_md.py
-# converts pptx to markdown
+"""Convert PowerPoint (.pptx) files to Markdown.
+
+For each .pptx in input/, walks every slide with python-pptx, adds a `## Slide N`
+heading, promotes large-font text to subheadings, and writes the text to output/.
+"""
 
 import os
 import glob

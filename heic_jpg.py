@@ -1,5 +1,8 @@
-# heic_jpg.py
-# converts .heic images to .jpg
+"""Convert HEIC images to JPG.
+
+Registers the HEIF opener with Pillow, then for each .heic in input/ opens it,
+converts to RGB, and saves a .jpg to output/.
+"""
 
 import os
 import glob
