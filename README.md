@@ -153,16 +153,19 @@ All dependencies are installed automatically when you run `uv sync`
 - **Better approach**: Convert each image to PDF individually, then combine those PDFs using `combine_files.py`, then convert to markdown. This creates a multi-page PDF that processes much faster.
 
 ### ss_txt.py
-Converts screenshots and images to text using OCR (Optical Character Recognition). Optimized for plain text extraction.
+Converts screenshots and images to text using OCR (Optical Character Recognition). Has two modes: plain text (default) and structured content (tables/layout).
 
 **Usage:**
 ```bash
-python ss_txt.py
+python ss_txt.py               # simple mode: plain-text screenshots
+python ss_txt.py --structured  # structured mode: tables / complex layout
 ```
 
 **Python packages:**
 - pytesseract>=0.3.13
 - pillow>=11.3.0
+- opencv-python>=4.12.0.88
+- numpy>=2.2.5
 
 **System requirements:**
 - Tesseract OCR (macOS: `brew install tesseract`)
@@ -184,34 +187,15 @@ uv sync
 2. Preprocesses images for better OCR accuracy
 3. Extracts text using OCR with proper sentence structure
 4. Fixes random line breaks and preserves sentence flow
-5. Saves combined text to `output/all_extracted_text_combined.txt`
 
-**Features:**
+**Simple mode (default):**
 - Image preprocessing for better accuracy
-- Sentence structure preservation
-- Automatic line break fixing
+- Sentence structure preservation and line-break fixing
+- Saves combined text to `output/all_extracted_text_combined.txt`
 
-### ss_txt2.py
-Advanced screenshot to text converter optimized for tables, shapes, and structured content.
-
-**Usage:**
-```bash
-python ss_txt2.py
-```
-
-**Python packages:**
-- pytesseract>=0.3.13
-- pillow>=11.3.0
-- opencv-python>=4.12.0.88
-- numpy>=2.2.5
-
-**System requirements:**
-- Tesseract OCR (macOS: `brew install tesseract`)
-
-**Features:**
-- Table detection and extraction
-- Shape detection
-- Structured content recognition
+**Structured mode (`--structured` / `--tables`):**
+- OpenCV table detection (bordered and borderless) and per-cell OCR
+- Heavy OCR-error correction, formats tables with `|` separators
 - Better handling of complex layouts
 - Saves to `output/all_extracted_structured_text.txt`
 
@@ -678,8 +662,7 @@ converter/
 ├── csv_md.py           # CSV to Markdown converter
 ├── pdf_md.py           # PDF to Markdown converter (basic + OCR)
 ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
-├── ss_txt.py           # Screenshot to text converter (OCR, plain text)
-├── ss_txt2.py          # Screenshot to text converter (OCR, structured content)
+├── ss_txt.py           # Screenshot to text converter (OCR; --structured for tables)
 ├── ipynb_pdf.py        # Jupyter notebook to PDF converter
 ├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
 ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
@@ -787,7 +770,7 @@ This means you can update your source file and convert it again to get an update
 | JPG/JPEG images | PDF | `jpg_pdf.py` |
 | PNG images | PDF | `png_pdf.py` |
 | JPG/JPEG images | Markdown (.md) | `jpg_md.py` |
-| Screenshots/Images | Text | `ss_txt.py`, `ss_txt2.py` |
+| Screenshots/Images | Text | `ss_txt.py` (`--structured` for tables) |
 | R (.R) | R Markdown (.Rmd) | `R_Rmd.py` |
 | R Markdown (.Rmd) | PDF | `Rmd_pdf.py` |
 | Multiple files (images/PDFs/text) | Single file | `combine_files.py` |
