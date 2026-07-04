@@ -1,9 +1,23 @@
-"""Convert Markdown files to PDF using pandoc.
+"""Convert Markdown files to PDF using pandoc (xelatex engine).
 
-For each .md in input/ (or a file passed as an argument), preprocesses the markdown
-(normalizes math notation, strips stray control characters, converts LaTeX
-display-math delimiters to $$...$$), then runs pandoc to render a PDF into output/.
-Mermaid diagram blocks are rendered via mermaid-filter.
+For each .md in input/ (or a file passed as an argument), the markdown is
+preprocessed and then rendered to a PDF in output/.
+
+Preprocessing (mirrors the inverse of pdf_md.py):
+    - Normalize math delimiters: \\[ .. \\] -> $$ .. $$, \\( .. \\) -> $ .. $,
+      and fix escaped/space-padded $ so pandoc's tex_math_dollars sees clean math.
+    - Convert unicode math back to LaTeX so xelatex renders it: greek letters,
+      operators/relations/arrows/set-theory, unicode super/subscripts (x², xᵢ),
+      and bar variables (x̄ -> \\bar{x}). Code spans/blocks are protected first.
+    - Tables: normalize pipe spacing, protect against mid-table page breaks,
+      turn spanning header rows into centered captions, mbox negative numbers.
+    - Wrap ASCII-art / graph diagrams in code fences so their spacing survives.
+Mermaid diagram blocks are rendered via mermaid-filter when it's installed.
+
+Robustness: the full-fidelity render is attempted first. If xelatex chokes on
+the input (e.g. an undefined LaTeX command like a mistyped \\gama), we fall back
+to a safe render with math/raw-LaTeX disabled so you still get a PDF, and report
+the command that likely broke it.
 """
 
 import os
@@ -15,577 +29,87 @@ import traceback
 from pathlib import Path
 from shutil import which
 
+# Config: paths (absolute, based on this script's location so it runs anywhere)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+input_folder = os.path.join(script_dir, "input")
+output_folder = os.path.join(script_dir, "output")
 
-def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
-    """
-    Args:
-        md_path (str | Path): Path to the .md file (relative to input folder or absolute)
-        output_path (str | Path | None): Desired output PDF filename. If None, uses input stem + .pdf
-    """
-    
-    input_dir = Path("input")
-    output_dir = Path("output")
-    output_dir.mkdir(exist_ok=True)
+# Config: pandoc reader extensions
+# Full fidelity: math, pipe tables, raw HTML and raw LaTeX (for our injected \...)
+PANDOC_FROM = "markdown+tex_math_dollars+pipe_tables+raw_html+raw_tex"
+# Safe fallback: math + raw TeX OFF, so undefined commands render as literal text
+# instead of aborting the whole document.
+PANDOC_FROM_SAFE = (
+    "markdown+pipe_tables+raw_html"
+    "-tex_math_dollars-tex_math_single_backslash-raw_tex-latex_macros"
+)
 
-    # Build full input path
-    # if the provided path already points to a PDF, bail out early
-    try:
-        provided_suffix = Path(md_path).suffix.lower()
-        if provided_suffix == ".pdf":
-            print("That file is already in pdf format")
-            return False
-    except Exception:
-        pass
-    full_input_path = Path(md_path) if os.path.isabs(str(md_path)) else input_dir / md_path
-    if not full_input_path.exists():
-        print(f"Error: Markdown file '{full_input_path}' not found")
-        return False
+# Config: unicode -> LaTeX maps (reverse of pdf_md.py, so pdf->md->pdf round-trips)
+SUPERSCRIPT_TO_LATEX = {
+    "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5",
+    "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁺": "+", "⁻": "-",
+    "⁼": "=", "⁽": "(", "⁾": ")", "ⁿ": "n", "ⁱ": "i",
+}
+SUBSCRIPT_TO_LATEX = {
+    "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5",
+    "₆": "6", "₇": "7", "₈": "8", "₉": "9", "₊": "+", "₋": "-",
+    "₌": "=", "₍": "(", "₎": ")",
+    "ₐ": "a", "ₑ": "e", "ₕ": "h", "ᵢ": "i", "ⱼ": "j", "ₖ": "k",
+    "ₗ": "l", "ₘ": "m", "ₙ": "n", "ₒ": "o", "ₚ": "p", "ᵣ": "r",
+    "ₛ": "s", "ₜ": "t", "ᵤ": "u", "ᵥ": "v", "ₓ": "x",
+}
 
-    # Compute output name
-    if output_path is None:
-        pdf_name = f"{full_input_path.stem}.pdf"
-    else:
-        pdf_name = Path(output_path).name
-    full_output_path = output_dir / pdf_name
+# Greek letters that have a real LaTeX command (used both for standalone
+# conversion and as the base of a sub/superscript, e.g. θ₀ -> $\theta_{0}$).
+GREEK_TO_LATEX = {
+    # lowercase
+    "α": r"\alpha", "β": r"\beta", "γ": r"\gamma", "δ": r"\delta",
+    "ε": r"\varepsilon", "ζ": r"\zeta", "η": r"\eta", "θ": r"\theta",
+    "ι": r"\iota", "κ": r"\kappa", "λ": r"\lambda", "μ": r"\mu",
+    "ν": r"\nu", "ξ": r"\xi", "π": r"\pi", "ρ": r"\rho",
+    "σ": r"\sigma", "τ": r"\tau", "υ": r"\upsilon", "φ": r"\phi",
+    "χ": r"\chi", "ψ": r"\psi", "ω": r"\omega",
+    # uppercase (only those with a dedicated command; the rest look like Latin)
+    "Γ": r"\Gamma", "Δ": r"\Delta", "Θ": r"\Theta", "Λ": r"\Lambda",
+    "Ξ": r"\Xi", "Π": r"\Pi", "Σ": r"\Sigma", "Φ": r"\Phi",
+    "Ψ": r"\Psi", "Ω": r"\Omega",
+}
 
-    if not which("pandoc"):
-        print("Error: pandoc not found. Please install pandoc to convert Markdown to PDF.")
-        return False
+# Operators / relations / arrows / set theory that don't render reliably as raw
+# unicode under xelatex, so we wrap them in a LaTeX command inside math mode.
+OPERATOR_TO_LATEX = {
+    "∑": r"\sum", "∏": r"\prod", "∫": r"\int", "∮": r"\oint",
+    "∂": r"\partial", "∇": r"\nabla", "∞": r"\infty", "√": r"\surd",
+    "∓": r"\mp", "×": r"\times", "÷": r"\div", "·": r"\cdot", "∗": r"\ast",
+    "≠": r"\neq", "≡": r"\equiv", "∝": r"\propto", "∼": r"\sim",
+    "∈": r"\in", "∉": r"\notin", "⊂": r"\subset", "⊆": r"\subseteq",
+    "⊃": r"\supset", "⊇": r"\supseteq", "∪": r"\cup", "∩": r"\cap",
+    "∅": r"\emptyset", "∀": r"\forall", "∃": r"\exists",
+    "¬": r"\neg", "∧": r"\land", "∨": r"\lor",
+    "→": r"\rightarrow", "←": r"\leftarrow", "⇒": r"\Rightarrow",
+    "⇐": r"\Leftarrow", "↔": r"\leftrightarrow", "⇔": r"\Leftrightarrow",
+    "↦": r"\mapsto", "∠": r"\angle", "⊥": r"\perp", "∥": r"\parallel",
+    "⋈": r"\bowtie",
+}
 
-    try:
-        # Preprocess markdown to handle math symbols
-        # Read the markdown file and convert Unicode math symbols to LaTeX
-        with open(full_input_path, 'r', encoding='utf-8') as f:
-            md_content = f.read()
-        
-        # Replace vertical tab / form feed with newline, strip other control chars
-        md_content = md_content.replace('\x0b', '\n').replace('\x0c', '\n')
-        md_content = re.sub(r'[\x00-\x08\x0e-\x1f]', '', md_content)
+# Everything we turn into a $\command$: greek + operators, in one pass.
+SYMBOL_TO_LATEX = {**GREEK_TO_LATEX, **OPERATOR_TO_LATEX}
 
-        # Convert \[...\] to $$...$$ for better pandoc compatibility
-        # raw_tex doesn't always handle \[...\] correctly, so convert to $$...$$
-        # Match pairs properly to avoid breaking existing $$...$$ blocks
-        def convert_display_math(match):
-            content = match.group(1)
-            return f'$${content}$$'
-        # Pattern: \[ followed by content until \], handling escaped characters and newlines
-        # Use [\s\S] to match everything including newlines (non-greedy match)
-        md_content = re.sub(r'\\\[([\s\S]*?)\\\]', convert_display_math, md_content)
-        # Convert \(...\) to $...$ for inline math (only matched pairs)
-        # This ensures we don't create unmatched delimiters
-        # Match \( followed by content until \), handling escaped characters
-        def convert_math(match):
-            content = match.group(1).strip()
-            return f'${content}$'
-        # Pattern: \( followed by any chars (including escaped ones) until \)
-        md_content = re.sub(r'\\\(([\s\S]*?)\\\)', convert_math, md_content)
-        
-        # Replace em-dashes globally (they can break LaTeX rendering)
-        md_content = md_content.replace('—', '-').replace('–', '-')
-        
-        # Convert \$...\$ pairs to $...$ (some markdown tools use escaped $ as math delimiters)
-        def unescape_math_dollars(match):
-            content = match.group(1)
-            if '\\' in content:
-                return f'${content.strip()}$'
-            return match.group(0)
-        md_content = re.sub(r'\\\$((?:[^$])+?)\\\$', unescape_math_dollars, md_content)
+# These render better as unicode kept inside math mode than as a LaTeX command.
+UNICODE_MATH_KEEP = ["≤", "≥", "±", "≈"]
 
-        # Fallback: handle \$ used as an opening math delimiter with no closing pair.
-        # Convert \$ when it precedes a LaTeX command (e.g. \$ \log, \$ \frac)
-        md_content = re.sub(r'\\\$(\s*\\[a-zA-Z])', r'$\1', md_content)
-        # Convert \$ before a variable=math expression (e.g. \$ A = \frac{...})
-        md_content = re.sub(r'\\\$(\s*[A-Za-z]\s*=\s*\\)', r'$\1', md_content)
-        # Convert trailing \$ after typical end-of-expression characters (closing delimiter)
-        md_content = re.sub(r'(?<=[a-zA-Z0-9}])\\\$', '$', md_content)
+# Precomposed barred variables (the combining-macron form is handled by regex).
+BAR_VARIABLES = {
+    "x̄": r"$\\bar{x}$", "ȳ": r"$\\bar{y}$", "z̄": r"$\\bar{z}$",
+    "X̄": r"$\\bar{X}$", "Ȳ": r"$\\bar{Y}$", "Z̄": r"$\\bar{Z}$",
+}
 
-        # Normalize spaces after opening $ for inline math.
-        # Pandoc's tex_math_dollars extension requires $ to be immediately followed by a non-space
-        # character, otherwise it escapes $ as \$ and math commands end up outside math mode.
-        # Handles: "$ \log n$" -> "$\log n$"  |  "$ A = \frac{...}{...}$" -> "$A = \frac{...}{...}$"
-        # Note: \(...\) is already converted to $...$ above, so this covers that style too.
-        md_content = re.sub(r'(?<!\$)\$ +(?=\\[a-zA-Z])', '$', md_content)       # $ <space> \command
-        md_content = re.sub(r'(?<!\$)\$ +(?=[A-Za-z][^$\n]*(?:=|\\))', '$', md_content)  # $ <space> var=
+# Character classes reused across the script regexes.
+_GREEK_CLASS = "α-ωΑ-Ωθε"
+_SCRIPT_BASE = r"A-Za-z0-9" + _GREEK_CLASS + r"\)\]"
 
-        # Ensure lists are properly formatted - add blank line before lists if missing
-        # This helps pandoc recognize lists correctly (especially after text like "where:")
-        md_content = re.sub(r'([^\n])\n(- )', r'\1\n\n\2', md_content)
-        md_content = re.sub(r'([^\n])\n(\* )', r'\1\n\n\2', md_content)
-        md_content = re.sub(r'([^\n])\n(\d+\. )', r'\1\n\n\2', md_content)
-        
-        # Normalize table spacing: fix spacing around | pipes while preserving cell content
-        # This is necessary because inconsistent spacing can break pandoc's table parser
-        lines = md_content.split('\n')
-
-        # Detect and wrap ASCII art / graph diagrams in code fences.
-        # This preserves spacing and alignment for diagrams that use arrows and
-        # pipe characters as structural elements (e.g. adjacency / flow graphs).
-        def is_ascii_diagram_line(ln):
-            s = ln.rstrip()
-            if not s:
-                return False
-            # Horizontal arrow patterns used in graph diagrams
-            if re.search(r'--+>|<--+', s):
-                return True
-            # Lines composed entirely of structural characters (|, ^, v, digits, spaces)
-            # e.g. "|        |         |"  or  "5        |         8"
-            structural_only = re.sub(r'[\s|^v\d]', '', s)
-            if structural_only == '' and ('|' in s or '^' in s):
-                return True
-            # Lines with only digits and spaces that use large gaps for positioning
-            # e.g. "1        6         3" — numbers spread out as edge weights in a diagram
-            if re.match(r'^[\d\s]+$', s) and re.search(r'\d\s{3,}\d', s):
-                return True
-            return False
-
-        wrapped_lines = []
-        idx = 0
-        in_fence = False
-        while idx < len(lines):
-            line = lines[idx]
-            # Track existing code fences so we don't double-wrap them
-            if line.strip().startswith('```'):
-                in_fence = not in_fence
-                wrapped_lines.append(line)
-                idx += 1
-                continue
-            if not in_fence and is_ascii_diagram_line(line):
-                # Collect the contiguous diagram block, allowing single blank lines
-                # between diagram lines (so the whole graph stays together)
-                block_start = idx
-                j = idx
-                while j < len(lines):
-                    if is_ascii_diagram_line(lines[j]):
-                        j += 1
-                    elif (not lines[j].strip()
-                          and j + 1 < len(lines)
-                          and is_ascii_diagram_line(lines[j + 1])):
-                        j += 1  # blank line bridging two diagram lines
-                    else:
-                        break
-                block = lines[block_start:j]
-                if len(block) >= 2:
-                    wrapped_lines.append('```')
-                    wrapped_lines.extend(block)
-                    wrapped_lines.append('```')
-                    idx = j
-                    continue
-            wrapped_lines.append(line)
-            idx += 1
-        lines = wrapped_lines
-
-        cleaned_lines = []
-        
-        # Track table context to detect problematic header rows and add space before tables
-        prev_line_was_table = False
-        in_table = False
-        in_math_block = False  # Track if we're inside a $$...$$ block
-        in_code_block = False  # Track if we're inside a ``` code fence
-        
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-
-            # Track code fences - content inside ``` blocks must pass through untouched
-            if stripped.startswith('```'):
-                in_code_block = not in_code_block
-                cleaned_lines.append(line)
-                prev_line_was_table = False
-                continue
-
-            if in_code_block:
-                cleaned_lines.append(line)
-                prev_line_was_table = False
-                continue
-
-            # Track math blocks - if line is exactly $$, toggle state
-            if stripped == '$$':
-                in_math_block = not in_math_block
-                cleaned_lines.append(line)
-                prev_line_was_table = False
-                continue
-            
-            # Skip table processing if we're inside a math block
-            if in_math_block:
-                cleaned_lines.append(line)
-                prev_line_was_table = False
-                continue
-            
-            # Check if this is a table row
-            if stripped.startswith('|') and '|' in stripped[1:]:
-                # If this is the start of a new table (not already in one), add space before it
-                if not in_table and not prev_line_was_table:
-                    # Add LaTeX commands to prevent page breaks within table only
-                    # Don't use \samepage as it keeps content after table together too
-                    cleaned_lines.append("")
-                    cleaned_lines.append("\\nopagebreak[4]")
-                    cleaned_lines.append("")
-                    in_table = True
-                
-                # Check if separator row
-                is_separator = bool(re.match(r'^\|\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', stripped))
-                
-                if is_separator:
-                    # Normalize separator row spacing
-                    parts = stripped.split('|')
-                    cells = []
-                    for part in parts[1:-1]:  # Skip first and last empty parts
-                        # Get the separator content (hyphens/colons)
-                        sep_content = re.sub(r'[^\-\:]', '', part)  # Keep only - and :
-                        if not sep_content:
-                            sep_content = '---'
-                        cells.append(sep_content)
-                    # Rejoin with consistent spacing: | --- | --- |
-                    cleaned_line = '| ' + ' | '.join(cells) + ' |'
-                    cleaned_lines.append(cleaned_line)
-                    prev_line_was_table = True
-                else:
-                    # Regular table row: normalize spacing around pipes, preserve cell content
-                    parts = stripped.split('|')
-                    cells = []
-                    for part in parts[1:-1]:  # Skip first and last empty parts
-                        # Strip whitespace but preserve empty cells as empty strings
-                        cell_content = part.strip()
-                        # Unescape dollar signs (some markdown files have \$ instead of $)
-                        cell_content = cell_content.replace('\\$', '$')
-                        # Convert existing \(...\) to $...$ for consistent handling in table cells
-                        # Then combine adjacent $...$ expressions
-                        def convert_math_to_dollars(text):
-                            r"""Convert \(...\) to $...$ for table cells."""
-                            result = []
-                            i = 0
-                            while i < len(text):
-                                start = text.find('\\(', i)
-                                if start == -1:
-                                    result.append(text[i:])
-                                    break
-                                result.append(text[i:start])
-                                # Find matching \)
-                                depth = 0
-                                j = start + 2
-                                while j < len(text):
-                                    if j < len(text) - 1 and text[j:j+2] == '\\(':
-                                        depth += 1
-                                        j += 2
-                                    elif j < len(text) - 1 and text[j:j+2] == '\\)':
-                                        if depth == 0:
-                                            math_inner = text[start+2:j]
-                                            result.append(f'${math_inner}$')
-                                            i = j + 2
-                                            break
-                                        else:
-                                            depth -= 1
-                                            j += 2
-                                    else:
-                                        j += 1
-                                else:
-                                    result.append(text[start:])
-                                    break
-                            return ''.join(result)
-                        
-                        cell_content = convert_math_to_dollars(cell_content)
-                        # Combine adjacent math expressions separated by math operators into a single math block
-                        # This handles cases like "$d_i$ = $y_i$ - $x_i$" which should become one math block
-                        # Keep using $...$ in table cells (pandoc handles this fine)
-                        while True:
-                            # Match $...$ [operator] $...$ and combine them
-                            combined = re.sub(
-                                r'\$([^\$]+?)\$\s*([=+\-×÷≤≥≠≈±])\s*\$([^\$]+?)\$',
-                                r'$\1 \2 \3$',
-                                cell_content
-                            )
-                            if combined == cell_content:
-                                break
-                            cell_content = combined
-                        # Protect negative numbers from line breaks by wrapping in mbox
-                        # This prevents LaTeX from breaking "-47" across lines
-                        # Split by $...$ to separate math from non-math parts
-                        # Protect negatives only outside math
-                        parts_list = re.split(r'(\$[^\$]+\$)', cell_content)
-                        protected_parts = []
-                        for part in parts_list:
-                            if part.startswith('$') and part.endswith('$'):
-                                # This is math, keep as is
-                                protected_parts.append(part)
-                            else:
-                                # Not math, protect negative numbers
-                                protected_parts.append(re.sub(r'(-\d+)', r'\\mbox{\1}', part))
-                        cell_content = ''.join(protected_parts)
-                        cells.append(cell_content)
-                    
-                    # Convert spanning header rows to centered captions above the table
-                    # These break table parsing when they have fewer cells than the main table
-                    # (e.g., "|          | Bolt |" with only 2 cells when table has 7 columns)
-                    if len(cells) <= 3 and i + 1 < len(lines):  # Allow up to 3 cells for spanning headers
-                        next_stripped = lines[i + 1].strip()
-                        # If next line is a proper table row (has more cells), convert this to a caption
-                        if next_stripped.startswith('|') and '|' in next_stripped[1:]:
-                            next_parts = next_stripped.split('|')
-                            next_cells = [p.strip() for p in next_parts[1:-1]]
-                            if len(next_cells) > len(cells) + 1:  # Next row has significantly more cells
-                                # This is a spanning header - extract all non-empty text
-                                header_parts = [c for c in cells if c.strip()]
-                                if header_parts:
-                                    header_text = ' '.join(header_parts)
-                                    # Add as a centered caption/header above the table
-                                    # Use LaTeX centering with proper character escaping
-                                    # Escape special LaTeX characters
-                                    escaped_header = header_text.replace('\\', '\\textbackslash{}')
-                                    escaped_header = escaped_header.replace('{', '\\{').replace('}', '\\}')
-                                    escaped_header = escaped_header.replace('&', '\\&').replace('%', '\\%')
-                                    escaped_header = escaped_header.replace('$', '\\$').replace('#', '\\#')
-                                    escaped_header = escaped_header.replace('^', '\\textasciicircum{}')
-                                    escaped_header = escaped_header.replace('_', '\\_').replace('~', '\\textasciitilde{}')
-                                    cleaned_lines.append(f'\\begin{{center}}\\textbf{{{escaped_header}}}\\end{{center}}')
-                                    cleaned_lines.append("")
-                                prev_line_was_table = False
-                                continue
-                    
-                    # Rejoin with consistent spacing: | cell | cell |
-                    cleaned_line = '| ' + ' | '.join(cells) + ' |'
-                    cleaned_lines.append(cleaned_line)
-                    prev_line_was_table = True
-            else:
-                # If we were in a table and now we're not, add closing LaTeX commands
-                if in_table and not stripped.startswith('|'):
-                    # End table protection
-                    # allow normal page breaks after table
-                    cleaned_lines.append("\\nopagebreak[4]")
-                    cleaned_lines.append("")
-                    in_table = False
-                cleaned_lines.append(line)
-                prev_line_was_table = False
-        
-        md_content = '\n'.join(cleaned_lines)
-        
-        # Convert horizontal rules (---) to spacing/breaks
-        # Replace lines with exactly "---" with double newlines (paragraph break for spacing)
-        md_content = re.sub(
-            r'^---\s*$',
-            r'\n\n',
-            md_content,
-            flags=re.MULTILINE
-        )
-        
-        # Handle variables with bars (x̄, ȳ, z̄, etc.) - convert to LaTeX \bar{x}
-        # Pattern matches letter followed by combining macron (U+0304)
-        md_content = re.sub(
-            r'([a-zA-Z])\u0304',  # letter + combining macron
-            r'$\\bar{\1}$',
-            md_content
-        )
-        
-        # Also handle precomposed characters if they exist (x̄ as single character)
-        # Convert x̄, ȳ, z̄, etc. to LaTeX \bar{x}
-        bar_variables = {
-            'x̄': r'$\\bar{x}$',
-            'ȳ': r'$\\bar{y}$',
-            'z̄': r'$\\bar{z}$',
-            'X̄': r'$\\bar{X}$',
-            'Ȳ': r'$\\bar{Y}$',
-            'Z̄': r'$\\bar{Z}$',
-        }
-        for var, latex in bar_variables.items():
-            # Replace if not already in math mode
-            pattern = r'(?<!\$)' + re.escape(var) + r'(?!\$)'
-            md_content = re.sub(pattern, latex, md_content)
-        
-        # Convert Unicode math symbols - some to LaTeX commands, some kept as Unicode in math mode
-        # Symbols that need LaTeX commands (don't render well as Unicode)
-        # Use double backslash in raw strings to get single backslash in the actual string
-        symbol_replacements_latex = [
-            (r'∑', r'\\sum'),
-            (r'∫', r'\\int'),
-            (r'∞', r'\\infty'),
-            (r'≠', r'\\neq'),
-        ]
-        
-        # Convert Unicode subscripts to LaTeX subscripts before processing Greek letters
-        # This ensures θ₀ becomes $\theta_0$ instead of $θ$₀
-        subscript_map = {
-            '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3', '₄': '_4', '₅': '_5',
-            '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
-            'ₐ': '_a', 'ₑ': '_e', 'ₕ': '_h', 'ᵢ': '_i', 'ⱼ': '_j', 'ₖ': '_k',
-            'ₗ': '_l', 'ₘ': '_m', 'ₙ': '_n', 'ₒ': '_o', 'ₚ': '_p', 'ᵣ': '_r',
-            'ₛ': '_s', 'ₜ': '_t', 'ᵤ': '_u', 'ᵥ': '_v', 'ₓ': '_x', 'ᵧ': '_y', 'ᵦ': '_z'
-        }
-        
-        # Greek letter to LaTeX command mapping
-        greek_to_latex = {
-            'θ': r'\theta', 'ε': r'\varepsilon', 'α': r'\alpha', 'β': r'\beta',
-            'γ': r'\gamma', 'δ': r'\delta', 'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma',
-            'ρ': r'\rho', 'τ': r'\tau',  # Add rho and tau
-            'Θ': r'\Theta', 'Ε': r'\Epsilon', 'Α': r'\Alpha', 'Β': r'\Beta',
-            'Γ': r'\Gamma', 'Δ': r'\Delta', 'Λ': r'\Lambda', 'Μ': r'\Mu', 'Σ': r'\Sigma'
-        }
-        
-        # Convert patterns like θ₀, θ₁, x₁, etc. to LaTeX
-        # Match: letter/Greek + subscript, not already in math mode
-        for subscript_unicode, subscript_latex in subscript_map.items():
-            # Match any letter (including Greek) followed by subscript
-            pattern = r'(?<!\$)([a-zA-Zα-ωΑ-Ωθε])(?<!\\\\)' + re.escape(subscript_unicode) + r'(?!\$)'
-            def replace_with_subscript(match):
-                base_char = match.group(1)
-                latex_base = greek_to_latex.get(base_char, base_char)
-                return f'${latex_base}{subscript_latex}$'
-            md_content = re.sub(pattern, replace_with_subscript, md_content)
-        
-        # Convert LaTeX-style subscripts (B_j, p_i, SS_A, SS_B, SS_AB, etc.) to proper LaTeX subscripts
-        # ONLY convert if they're inside math blocks (\(...\) or $$...$$)
-        # This ensures underscores in regular text (like "file_name") are left alone
-        def convert_underscore_in_math(match):
-            math_content = match.group(1)
-            # Fix ambiguous subscripts like k_1x which pandoc may parse as k_{1x} (double subscript).
-            # Wrapping the digit in braces (k_{1}x) makes the grouping explicit before further processing.
-            math_content = re.sub(r'_(\d)([a-zA-Z])', r'_{\1}\2', math_content)
-            # Convert underscore patterns to LaTeX subscripts within the math content
-            # Pattern: variable + underscore + subscript
-            # Matches: SS_A, SS_B, SS_AB, B_j, p_i, T_i, β_j, TSS_ij, etc.
-            def replace_subscript(m):
-                base_var = m.group(1)
-                subscript = m.group(2)
-                # Convert Greek letters in base variable to LaTeX commands
-                result = []
-                for char in base_var:
-                    latex_char = greek_to_latex.get(char, char)
-                    result.append(latex_char)
-                latex_base = ''.join(result)
-                # Return with proper LaTeX subscript (use braces for multi-character subscripts)
-                if len(subscript) > 1:
-                    return f'{latex_base}_{{{subscript}}}'
-                else:
-                    return f'{latex_base}_{subscript}'
-            
-            # Convert underscore patterns inside math content
-            # Match: variable (letters/Greek) + underscore + subscript (letters/numbers)
-            # Be careful not to match escaped underscores or table separators
-            # Pattern: word characters + underscore + word characters, but not if underscore is escaped
-            math_content = re.sub(
-                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)(?![|])',
-                replace_subscript,
-                math_content
-            )
-            return f'$${math_content}$$'
-        
-        # Convert underscore subscripts inside $$...$$ blocks (display math)
-        md_content = re.sub(r'\$\$([^$]*(?:\\.[^$]*)*?)\$\$', convert_underscore_in_math, md_content)
-        
-        # Also handle $...$ blocks (inline math) - note: \(...\) was already converted to $...$ earlier
-        def convert_underscore_in_inline_math(match):
-            math_content = match.group(1)
-            # Same fix as display math: prevent k_1x from becoming k_{1x}
-            math_content = re.sub(r'_(\d)([a-zA-Z])', r'_{\1}\2', math_content)
-            # Convert underscore patterns to LaTeX subscripts
-            def replace_subscript(m):
-                base_var = m.group(1)
-                subscript = m.group(2)
-                # Convert Greek letters in base variable to LaTeX commands
-                result = []
-                for char in base_var:
-                    latex_char = greek_to_latex.get(char, char)
-                    result.append(latex_char)
-                latex_base = ''.join(result)
-                # Return with proper LaTeX subscript
-                if len(subscript) > 1:
-                    return f'{latex_base}_{{{subscript}}}'
-                else:
-                    return f'{latex_base}_{subscript}'
-            
-            # Convert underscore patterns inside math content
-            # Be careful not to match table separators (|) or escaped underscores
-            math_content = re.sub(
-                r'([A-Za-zα-ωΑ-Ωθε]+)(?<!\\\\)_([a-zA-Z0-9]+)(?![|])',
-                replace_subscript,
-                math_content
-            )
-            return f'${math_content}$'
-        
-        # Convert underscore subscripts inside $...$ blocks (inline math)
-        md_content = re.sub(r'(?<!\$)\$([^$]+?)\$(?!\$)', convert_underscore_in_inline_math, md_content)
-        
-        # Convert standalone Greek letters to LaTeX commands (not already in math from subscripts)
-        # Convert ε to \varepsilon (or \epsilon), and other Greek letters
-        greek_standalone = {
-            'ε': r'\varepsilon',  # Use \varepsilon for epsilon
-            'θ': r'\theta',
-            'π': r'\pi',  # Add pi
-            'ρ': r'\rho', 'τ': r'\tau',  # Add rho and tau
-            'α': r'\alpha', 'β': r'\beta', 'γ': r'\gamma', 'δ': r'\delta',
-            'λ': r'\lambda', 'μ': r'\mu', 'σ': r'\sigma'
-        }
-        for greek_char, latex_cmd in greek_standalone.items():
-            # Only convert if not already in math mode
-            pattern = r'(?<!\$)' + re.escape(greek_char) + r'(?!\$)'
-            md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
-        
-        # Convert additional math symbols to LaTeX commands
-        additional_symbols = {
-            '⋈': r'\bowtie',  # Bowtie/join symbol
-            '∪': r'\cup',      # Union
-            '∩': r'\cap',      # Intersection (common with union)
-            '∃': r'\exists',   # Existential quantifier
-            '∀': r'\forall',   # Universal quantifier
-            '∈': r'\in',       # Element of
-            '∉': r'\notin',    # Not element of
-            '⊆': r'\subseteq', # Subset or equal
-            '⊂': r'\subset',  # Subset
-            '∅': r'\emptyset', # Empty set
-        }
-        for symbol, latex_cmd in additional_symbols.items():
-            # Only convert if not already in math mode
-            pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
-            md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
-        
-        # Combine adjacent math expressions that were just created (e.g., θ₀ + θ₁x becomes one block)
-        # Match: $...$ followed by space/operator and $...$
-        while True:
-            combined = re.sub(
-                r'\$([^$]+)\$\s*([+\-=])\s*\$([^$]+)\$',
-                r'$\1 \2 \3$',
-                md_content
-            )
-            if combined == md_content:
-                break
-            md_content = combined
-        
-        # Symbols to keep as Unicode but wrap in math mode for proper rendering
-        # Note: ≤, ≥, ±, and ≈ work better as Unicode symbols in math mode than as LaTeX commands
-        unicode_symbols = [r'≤', r'≥', r'±', r'≈']
-        
-        # Wrap remaining Unicode symbols in math mode (but skip if already in math from above)
-        for symbol in unicode_symbols:
-            # Only wrap if not already in math mode
-            pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
-            # Wrap in inline math mode to ensure proper rendering
-            md_content = re.sub(pattern, lambda m, sym=symbol: f'${sym}$', md_content)
-        
-        # Then, convert symbols that need LaTeX commands
-        # Process symbols that should always be in math mode
-        for symbol, latex_cmd in symbol_replacements_latex:
-            # Replace symbol if not immediately preceded or followed by $ (simple check)
-            # This catches symbols in text like "P(X ≤ 3)" or "160 ≤ X"
-            pattern = r'(?<!\$)' + re.escape(symbol) + r'(?!\$)'
-            md_content = re.sub(pattern, lambda m, cmd=latex_cmd: f'${cmd}$', md_content)
-            
-            # Handle edge case: symbol appears right after closing $ (like $\bar{x}$ ± z)
-            # Replace $...$symbol with $...$ $symbol$ (separate math blocks)
-            pattern_after_math = r'(\$[^$]+\$)\s*' + re.escape(symbol) + r'(?!\$)'
-            md_content = re.sub(pattern_after_math, lambda m, cmd=latex_cmd: f'{m.group(1)} ${cmd}$', md_content)
-        
-        # Final normalization: strip leading/trailing whitespace inside $...$ blocks
-        # Pandoc's tex_math_dollars requires no space after opening $ or before closing $
-        md_content = re.sub(
-            r'(?<!\$)\$([^$]+?)\$(?!\$)',
-            lambda m: f'${m.group(1).strip()}$',
-            md_content
-        )
-        
-        # Create temporary markdown file with processed content
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_md:
-            temp_md.write(md_content)
-            temp_md_path = temp_md.name
-
-        # Create header file with LaTeX packages for better rendering of certain math symbols
-        header_content = """\\usepackage{amsmath}
+# Config: LaTeX preamble injected into every render
+LATEX_HEADER = """\\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{fontspec}
 % Ensure horizontal rules render properly
@@ -627,53 +151,533 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 """
 
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False, encoding='utf-8') as header_file:
-            header_file.write(header_content)
-            header_path = header_file.name
-        
-        mermaid_filter_path = which("mermaid-filter")
+# Preprocessing: control chars + math delimiters + list spacing
+def clean_control_chars(md):
+    """Turn vertical-tab/form-feed into newlines and strip other control chars."""
+    md = md.replace("\x0b", "\n").replace("\x0c", "\n")
+    return re.sub(r"[\x00-\x08\x0e-\x1f]", "", md)
 
+
+def normalize_math_delimiters(md):
+    """Normalize LaTeX math delimiters to $ / $$ and fix escaped/padded $.
+
+    raw_tex doesn't always handle \\[..\\] correctly, so we convert to $$..$$.
+    Pandoc's tex_math_dollars also requires the opening $ to be immediately
+    followed by a non-space character, so leading spaces are trimmed.
+    """
+    # \[..\] -> $$..$$ and \(..\) -> $..$  (match pairs, allow newlines)
+    md = re.sub(r"\\\[([\s\S]*?)\\\]", lambda m: f"$${m.group(1)}$$", md)
+    md = re.sub(r"\\\(([\s\S]*?)\\\)", lambda m: f"${m.group(1).strip()}$", md)
+
+    # Em/en dashes can break LaTeX rendering
+    md = md.replace("—", "-").replace("–", "-")
+
+    # \$..\$ pairs -> $..$ when the content is actually math (contains a backslash)
+    def unescape_math_dollars(m):
+        content = m.group(1)
+        return f"${content.strip()}$" if "\\" in content else m.group(0)
+    md = re.sub(r"\\\$((?:[^$])+?)\\\$", unescape_math_dollars, md)
+
+    # Lone \$ used as an opening delimiter with no closing pair
+    md = re.sub(r"\\\$(\s*\\[a-zA-Z])", r"$\1", md)         # \$ \command
+    md = re.sub(r"\\\$(\s*[A-Za-z]\s*=\s*\\)", r"$\1", md)   # \$ var = \...
+    md = re.sub(r"(?<=[a-zA-Z0-9}])\\\$", "$", md)           # trailing closing \$
+
+    # Trim space right after an opening $ so math commands stay inside math mode
+    md = re.sub(r"(?<!\$)\$ +(?=\\[a-zA-Z])", "$", md)                 # $ \command
+    md = re.sub(r"(?<!\$)\$ +(?=[A-Za-z][^$\n]*(?:=|\\))", "$", md)     # $ var=
+    return md
+
+
+def ensure_list_spacing(md):
+    """Add a blank line before lists so pandoc reliably recognizes them."""
+    md = re.sub(r"([^\n])\n(- )", r"\1\n\n\2", md)
+    md = re.sub(r"([^\n])\n(\* )", r"\1\n\n\2", md)
+    md = re.sub(r"([^\n])\n(\d+\. )", r"\1\n\n\2", md)
+    return md
+
+
+# Preprocessing: ASCII-art / graph diagrams
+def _is_ascii_diagram_line(ln):
+    """Heuristic: does this line look like part of an ASCII graph/flow diagram?"""
+    s = ln.rstrip()
+    if not s:
+        return False
+    # Horizontal arrow patterns used in graph diagrams
+    if re.search(r"--+>|<--+", s):
+        return True
+    # Lines composed entirely of structural characters (|, ^, v, digits, spaces)
+    # e.g. "|        |         |"  or  "5        |         8"
+    structural_only = re.sub(r"[\s|^v\d]", "", s)
+    if structural_only == "" and ("|" in s or "^" in s):
+        return True
+    # Lines with only digits and spaces that use large gaps for positioning
+    # e.g. "1        6         3" — numbers spread out as edge weights in a diagram
+    if re.match(r"^[\d\s]+$", s) and re.search(r"\d\s{3,}\d", s):
+        return True
+    return False
+
+
+def wrap_ascii_diagrams(md):
+    """Wrap contiguous ASCII-diagram blocks in code fences to preserve spacing."""
+    lines = md.split("\n")
+    wrapped_lines = []
+    idx = 0
+    in_fence = False
+    while idx < len(lines):
+        line = lines[idx]
+        # Track existing code fences so we don't double-wrap them
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+            wrapped_lines.append(line)
+            idx += 1
+            continue
+        if not in_fence and _is_ascii_diagram_line(line):
+            # Collect the contiguous diagram block, allowing single blank lines
+            # between diagram lines (so the whole graph stays together)
+            block_start = idx
+            j = idx
+            while j < len(lines):
+                if _is_ascii_diagram_line(lines[j]):
+                    j += 1
+                elif (not lines[j].strip()
+                      and j + 1 < len(lines)
+                      and _is_ascii_diagram_line(lines[j + 1])):
+                    j += 1  # blank line bridging two diagram lines
+                else:
+                    break
+            block = lines[block_start:j]
+            if len(block) >= 2:
+                wrapped_lines.append("```")
+                wrapped_lines.extend(block)
+                wrapped_lines.append("```")
+                idx = j
+                continue
+        wrapped_lines.append(line)
+        idx += 1
+    return "\n".join(wrapped_lines)
+
+
+# Preprocessing: tables
+def _convert_paren_math_to_dollars(text):
+    r"""Convert \(...\) to $...$ within a table cell, honoring nesting."""
+    result = []
+    i = 0
+    while i < len(text):
+        start = text.find("\\(", i)
+        if start == -1:
+            result.append(text[i:])
+            break
+        result.append(text[i:start])
+        # Find matching \)
+        depth = 0
+        j = start + 2
+        while j < len(text):
+            if j < len(text) - 1 and text[j:j + 2] == "\\(":
+                depth += 1
+                j += 2
+            elif j < len(text) - 1 and text[j:j + 2] == "\\)":
+                if depth == 0:
+                    math_inner = text[start + 2:j]
+                    result.append(f"${math_inner}$")
+                    i = j + 2
+                    break
+                else:
+                    depth -= 1
+                    j += 2
+            else:
+                j += 1
+        else:
+            result.append(text[start:])
+            break
+    return "".join(result)
+
+
+def normalize_tables(md):
+    """Normalize pipe-table spacing and guard tables against LaTeX breakage.
+
+    Preserves the original behavior: consistent pipe spacing, page-break
+    protection around tables, spanning header rows converted to centered
+    captions, table-cell math combined, and negative numbers mbox-protected.
+    """
+    lines = md.split("\n")
+    cleaned_lines = []
+
+    prev_line_was_table = False
+    in_table = False
+    in_math_block = False   # inside a $$...$$ block
+    in_code_block = False   # inside a ``` code fence
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # Code fences: content inside ``` must pass through untouched
+        if stripped.startswith("```"):
+            in_code_block = not in_code_block
+            cleaned_lines.append(line)
+            prev_line_was_table = False
+            continue
+        if in_code_block:
+            cleaned_lines.append(line)
+            prev_line_was_table = False
+            continue
+
+        # Math blocks: a lone $$ toggles state; skip table processing inside
+        if stripped == "$$":
+            in_math_block = not in_math_block
+            cleaned_lines.append(line)
+            prev_line_was_table = False
+            continue
+        if in_math_block:
+            cleaned_lines.append(line)
+            prev_line_was_table = False
+            continue
+
+        # Is this a table row?
+        if stripped.startswith("|") and "|" in stripped[1:]:
+            # Start of a new table: add page-break protection before it
+            if not in_table and not prev_line_was_table:
+                cleaned_lines.append("")
+                cleaned_lines.append("\\nopagebreak[4]")
+                cleaned_lines.append("")
+                in_table = True
+
+            is_separator = bool(re.match(r"^\|\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$", stripped))
+
+            if is_separator:
+                # Normalize separator row spacing
+                parts = stripped.split("|")
+                cells = []
+                for part in parts[1:-1]:  # skip first/last empty parts
+                    sep_content = re.sub(r"[^\-\:]", "", part)  # keep only - and :
+                    if not sep_content:
+                        sep_content = "---"
+                    cells.append(sep_content)
+                cleaned_lines.append("| " + " | ".join(cells) + " |")
+                prev_line_was_table = True
+            else:
+                # Regular table row: normalize spacing, preserve cell content
+                parts = stripped.split("|")
+                cells = []
+                for part in parts[1:-1]:  # skip first/last empty parts
+                    cell_content = part.strip()
+                    # Unescape dollar signs and convert \(...\) to $...$
+                    cell_content = cell_content.replace("\\$", "$")
+                    cell_content = _convert_paren_math_to_dollars(cell_content)
+                    # Combine adjacent $...$ separated by a math operator into one block
+                    # e.g. "$d_i$ = $y_i$ - $x_i$" -> "$d_i = y_i - x_i$"
+                    while True:
+                        combined = re.sub(
+                            r"\$([^\$]+?)\$\s*([=+\-×÷≤≥≠≈±])\s*\$([^\$]+?)\$",
+                            r"$\1 \2 \3$",
+                            cell_content,
+                        )
+                        if combined == cell_content:
+                            break
+                        cell_content = combined
+                    # Protect negative numbers from line breaks (outside math only)
+                    parts_list = re.split(r"(\$[^\$]+\$)", cell_content)
+                    protected_parts = []
+                    for p in parts_list:
+                        if p.startswith("$") and p.endswith("$"):
+                            protected_parts.append(p)  # math, keep as-is
+                        else:
+                            protected_parts.append(re.sub(r"(-\d+)", r"\\mbox{\1}", p))
+                    cell_content = "".join(protected_parts)
+                    cells.append(cell_content)
+
+                # Spanning header rows (fewer cells than the real table) break the
+                # parser, so convert them to a centered caption above the table.
+                if len(cells) <= 3 and i + 1 < len(lines):
+                    next_stripped = lines[i + 1].strip()
+                    if next_stripped.startswith("|") and "|" in next_stripped[1:]:
+                        next_parts = next_stripped.split("|")
+                        next_cells = [p.strip() for p in next_parts[1:-1]]
+                        if len(next_cells) > len(cells) + 1:
+                            header_parts = [c for c in cells if c.strip()]
+                            if header_parts:
+                                header_text = " ".join(header_parts)
+                                escaped_header = header_text.replace("\\", "\\textbackslash{}")
+                                escaped_header = escaped_header.replace("{", "\\{").replace("}", "\\}")
+                                escaped_header = escaped_header.replace("&", "\\&").replace("%", "\\%")
+                                escaped_header = escaped_header.replace("$", "\\$").replace("#", "\\#")
+                                escaped_header = escaped_header.replace("^", "\\textasciicircum{}")
+                                escaped_header = escaped_header.replace("_", "\\_").replace("~", "\\textasciitilde{}")
+                                cleaned_lines.append(f"\\begin{{center}}\\textbf{{{escaped_header}}}\\end{{center}}")
+                                cleaned_lines.append("")
+                            prev_line_was_table = False
+                            continue
+
+                cleaned_lines.append("| " + " | ".join(cells) + " |")
+                prev_line_was_table = True
+        else:
+            # Left a table: close the page-break protection
+            if in_table and not stripped.startswith("|"):
+                cleaned_lines.append("\\nopagebreak[4]")
+                cleaned_lines.append("")
+                in_table = False
+            cleaned_lines.append(line)
+            prev_line_was_table = False
+
+    return "\n".join(cleaned_lines)
+
+
+# Preprocessing: unicode math -> LaTeX (code spans/blocks protected)
+def _convert_scripts(md):
+    """Convert unicode super/subscript runs to LaTeX, e.g. x² -> $x^{2}$, xᵢ -> $x_{i}$."""
+    sup = "".join(re.escape(c) for c in SUPERSCRIPT_TO_LATEX)
+    sub = "".join(re.escape(c) for c in SUBSCRIPT_TO_LATEX)
+
+    def sup_repl(m):
+        base = GREEK_TO_LATEX.get(m.group(1), m.group(1))
+        exp = "".join(SUPERSCRIPT_TO_LATEX[c] for c in m.group(2))
+        return f"${base}^{{{exp}}}$"
+
+    def sub_repl(m):
+        base = GREEK_TO_LATEX.get(m.group(1), m.group(1))
+        idx = "".join(SUBSCRIPT_TO_LATEX[c] for c in m.group(2))
+        return f"${base}_{{{idx}}}$"
+
+    md = re.sub(rf"(?<!\$)([{_SCRIPT_BASE}])((?:[{sup}])+)(?!\$)", sup_repl, md)
+    md = re.sub(rf"(?<!\$)([{_SCRIPT_BASE}])((?:[{sub}])+)(?!\$)", sub_repl, md)
+    return md
+
+
+def _convert_underscores_in_math(math_content):
+    """Turn variable_subscript patterns into proper LaTeX subscripts inside math."""
+    # k_1x would be misparsed as k_{1x}; make the grouping explicit first
+    math_content = re.sub(r"_(\d)([a-zA-Z])", r"_{\1}\2", math_content)
+
+    def replace_subscript(m):
+        base_var, subscript = m.group(1), m.group(2)
+        latex_base = "".join(GREEK_TO_LATEX.get(ch, ch) for ch in base_var)
+        if len(subscript) > 1:
+            return f"{latex_base}_{{{subscript}}}"
+        return f"{latex_base}_{subscript}"
+
+    # variable (letters/greek) + underscore + subscript (letters/numbers),
+    # skipping escaped underscores and table separators
+    return re.sub(
+        rf"([A-Za-z{_GREEK_CLASS}]+)(?<!\\\\)_([a-zA-Z0-9]+)(?![|])",
+        replace_subscript,
+        math_content,
+    )
+
+
+def _combine_adjacent_math(md):
+    """Merge "$a$ op $b$" (op in + - =) into a single "$a op b$" block."""
+    while True:
+        combined = re.sub(r"\$([^$]+)\$\s*([+\-=])\s*\$([^$]+)\$", r"$\1 \2 \3$", md)
+        if combined == md:
+            break
+        md = combined
+    return md
+
+
+def convert_symbols(md):
+    """Convert unicode math notation to LaTeX so xelatex renders it.
+
+    Code blocks and inline code are stashed first so identifiers/diagrams inside
+    them are never rewritten, then restored at the end.
+    """
+    protected = []
+
+    def stash(s):
+        protected.append(s)
+        return f"\x00{len(protected) - 1}\x00"
+
+    md = re.sub(r"```.*?```", lambda m: stash(m.group(0)), md, flags=re.S)
+    md = re.sub(r"`[^`\n]*`", lambda m: stash(m.group(0)), md)
+
+    # Horizontal rules -> paragraph break (spacing)
+    md = re.sub(r"^---\s*$", r"\n\n", md, flags=re.MULTILINE)
+
+    # Barred variables: combining macron form, then precomposed characters
+    md = re.sub(r"([a-zA-Z])̄", r"$\\bar{\1}$", md)
+    for var, latex in BAR_VARIABLES.items():
+        md = re.sub(r"(?<!\$)" + re.escape(var) + r"(?!\$)", latex, md)
+
+    # Unicode super/subscripts -> LaTeX (θ₀ -> $\theta_{0}$, x² -> $x^{2}$)
+    md = _convert_scripts(md)
+
+    # Underscore subscripts inside existing math blocks
+    md = re.sub(
+        r"\$\$([^$]*(?:\\.[^$]*)*?)\$\$",
+        lambda m: f"$${_convert_underscores_in_math(m.group(1))}$$",
+        md,
+    )
+    md = re.sub(
+        r"(?<!\$)\$([^$]+?)\$(?!\$)",
+        lambda m: f"${_convert_underscores_in_math(m.group(1))}$",
+        md,
+    )
+
+    # Greek + operators -> $\command$ (plain, and when butted against closing $)
+    for sym, cmd in SYMBOL_TO_LATEX.items():
+        md = re.sub(r"(?<!\$)" + re.escape(sym) + r"(?!\$)",
+                    lambda m, c=cmd: f"${c}$", md)
+        md = re.sub(r"(\$[^$]+\$)\s*" + re.escape(sym) + r"(?!\$)",
+                    lambda m, c=cmd: f"{m.group(1)} ${c}$", md)
+
+    # Merge adjacent math blocks created above
+    md = _combine_adjacent_math(md)
+
+    # Symbols that render best as unicode kept in math mode
+    for sym in UNICODE_MATH_KEEP:
+        md = re.sub(r"(?<!\$)" + re.escape(sym) + r"(?!\$)",
+                    lambda m, s=sym: f"${s}$", md)
+
+    # Trim whitespace inside $...$ (tex_math_dollars wants no padding)
+    md = re.sub(r"(?<!\$)\$([^$]+?)\$(?!\$)",
+                lambda m: f"${m.group(1).strip()}$", md)
+
+    # Restore protected code (loop in case a span nested another placeholder)
+    for _ in range(5):
+        if "\x00" not in md:
+            break
+        md = re.sub(r"\x00(\d+)\x00", lambda m: protected[int(m.group(1))], md)
+    return md
+
+
+# Rendering
+def _extract_bad_command(err):
+    """Pull the offending \\command out of an xelatex 'Undefined control sequence'."""
+    m = re.search(r"Undefined control sequence\.\s*\n\s*l\.\d+\s*(.*)", err)
+    if not m:
+        return None
+    cmds = re.findall(r"\\([A-Za-z]+)", m.group(1))
+    return f"\\{cmds[-1]}" if cmds else None
+
+
+def _pandoc_once(md_text, output_path, from_fmt, header_path, mermaid_filter):
+    """Run pandoc once on md_text. Returns (ok, error_message)."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False,
+                                     encoding="utf-8") as temp_md:
+        temp_md.write(md_text)
+        temp_md_path = temp_md.name
+
+    cmd = [
+        "pandoc", temp_md_path,
+        "-o", str(output_path),
+        "--pdf-engine=xelatex",
+        "--standalone",
+        f"--include-in-header={header_path}",
+        f"--from={from_fmt}",
+        "--to=pdf",
+    ]
+    if mermaid_filter:
+        cmd += ["--filter", mermaid_filter]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+    finally:
         try:
-            cmd = [
-                "pandoc",
-                temp_md_path,  # Use processed markdown file
-                "-o",
-                str(full_output_path),
-                "--pdf-engine=xelatex",
-                "--standalone",
-                f"--include-in-header={header_path}",
-                "--from=markdown+tex_math_dollars+pipe_tables+raw_html+raw_tex",  # Enable math, pipe tables, raw HTML, and raw LaTeX
-                "--to=pdf",
-            ]
-            if mermaid_filter_path:
-                cmd += ["--filter", mermaid_filter_path]
-            print(f"Converting '{full_input_path}' to '{full_output_path}' .")
-            result = subprocess.run(cmd, capture_output=True, text=True)
-        finally:
-            # Clean up temp files
-            try:
-                os.unlink(header_path)
-                os.unlink(temp_md_path)
-            except:
-                pass
-        
+            os.unlink(temp_md_path)
+        except OSError:
+            pass
         # mermaid-filter writes a .err file in the cwd; clean it up
         err_file = Path("mermaid-filter.err")
         if err_file.exists():
             try:
                 err_file.unlink()
-            except Exception:
+            except OSError:
                 pass
 
-        if result.returncode == 0 and full_output_path.exists():
-            print(f"Successfully converted to '{full_output_path}'")
+    if result.returncode == 0 and output_path.exists():
+        return True, ""
+    error_msg = result.stderr.strip() if result.stderr else "unknown error"
+    if result.stdout:
+        error_msg += f"\nstdout: {result.stdout.strip()}"
+    return False, error_msg
+
+
+def run_pandoc(rich_md, safe_md, output_path):
+    """Render with full fidelity, falling back to a safe render if xelatex fails."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tex", delete=False,
+                                     encoding="utf-8") as header_file:
+        header_file.write(LATEX_HEADER)
+        header_path = header_file.name
+
+    mermaid_filter = which("mermaid-filter")
+
+    try:
+        ok, err = _pandoc_once(rich_md, output_path, PANDOC_FROM, header_path, mermaid_filter)
+        if ok:
+            print(f"Successfully converted to '{output_path}'")
             return True
+
+        # Full render failed: report the likely culprit and try the safe render.
+        bad = _extract_bad_command(err)
+        if bad:
+            print(f"  full render failed on undefined LaTeX command '{bad}' "
+                  f"(check your markdown); retrying in safe mode")
         else:
-            error_msg = result.stderr.strip() if result.stderr else 'unknown error'
-            if result.stdout:
-                error_msg += f"\nstdout: {result.stdout.strip()}"
-            print(f"pandoc failed: {error_msg}")
+            print("  full render failed; retrying in safe mode")
+
+        ok, err2 = _pandoc_once(safe_md, output_path, PANDOC_FROM_SAFE, header_path, mermaid_filter)
+        if ok:
+            print(f"  produced a PDF in safe mode (math shown as text) -> '{output_path}'")
+            return True
+
+        print(f"pandoc failed: {err2}")
+        return False
+    finally:
+        try:
+            os.unlink(header_path)
+        except OSError:
+            pass
+
+
+# Orchestration
+def convert_md_to_pdf(md_path, output_path=None):
+    """Convert one markdown file to a PDF in output/.
+
+    Args:
+        md_path: path to the .md file (relative to input/ or absolute).
+        output_path: desired output filename; defaults to the input stem + .pdf.
+    """
+    # If the provided path already points to a PDF, bail out early
+    try:
+        if Path(md_path).suffix.lower() == ".pdf":
+            print("That file is already in pdf format")
             return False
+    except Exception:
+        pass
+
+    full_input_path = (Path(md_path) if os.path.isabs(str(md_path))
+                       else Path(input_folder) / md_path)
+    if not full_input_path.exists():
+        print(f"Error: Markdown file '{full_input_path}' not found")
+        return False
+
+    if output_path is None:
+        pdf_name = f"{full_input_path.stem}.pdf"
+    else:
+        pdf_name = Path(output_path).name
+    os.makedirs(output_folder, exist_ok=True)
+    full_output_path = Path(output_folder) / pdf_name
+
+    if not which("pandoc"):
+        print("Error: pandoc not found. Please install pandoc to convert Markdown to PDF.")
+        return False
+
+    try:
+        with open(full_input_path, "r", encoding="utf-8") as f:
+            md_content = f.read()
+
+        # Shared safe preprocessing (no injected LaTeX) -> reused by the fallback
+        md_content = clean_control_chars(md_content)
+        md_content = normalize_math_delimiters(md_content)
+        md_content = ensure_list_spacing(md_content)
+        safe_md = md_content
+
+        # Full-fidelity preprocessing on top
+        rich_md = wrap_ascii_diagrams(md_content)
+        rich_md = normalize_tables(rich_md)
+        rich_md = convert_symbols(rich_md)
+
+        print(f"Converting '{full_input_path}' to '{full_output_path}' .")
+        return run_pandoc(rich_md, safe_md, full_output_path)
     except Exception as e:
         print(f"Unexpected error running pandoc: {e}")
         traceback.print_exc()
@@ -683,8 +687,7 @@ def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
 def main():
     if len(sys.argv) < 2:
         # No args: convert all .md files in input/
-        input_dir = Path("input")
-        md_files = sorted(p for p in input_dir.glob("*.md"))
+        md_files = sorted(Path(input_folder).glob("*.md")) if os.path.isdir(input_folder) else []
         if not md_files:
             print("No .md files found in input folder")
             print("Usage: python md_pdf.py <file.md> [output.pdf]")
@@ -693,8 +696,7 @@ def main():
             return
         any_failed = False
         for md in md_files:
-            ok = convert_md_to_pdf(md.name, None)
-            if not ok:
+            if not convert_md_to_pdf(md.name, None):
                 any_failed = True
         if any_failed:
             sys.exit(1)
@@ -702,11 +704,9 @@ def main():
 
     md_file = sys.argv[1]
     output_file = sys.argv[2] if len(sys.argv) > 2 else None
-    success = convert_md_to_pdf(md_file, output_file)
-    if not success:
+    if not convert_md_to_pdf(md_file, output_file):
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-
