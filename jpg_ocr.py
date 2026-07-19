@@ -25,28 +25,33 @@ input_folder = os.path.join(script_dir, 'input')
 output_folder = os.path.join(script_dir, 'output')
 
 
-def convert_jpg_to_ocr():
-    """Convert all JPG/JPEG files in input folder to text files using OCR"""
-    
+def convert_jpg_to_ocr() -> str:
+    """Convert all JPG/JPEG files in the input folder to text files using OCR.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
+
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    
+
     # Find all JPG/JPEG files
     jpg_files = glob.glob(os.path.join(input_folder, '*.jpg')) + \
                 glob.glob(os.path.join(input_folder, '*.jpeg'))
-    
+
     if not jpg_files:
         # If there are only text files present, notify the user those are already in target format
         txt_present = glob.glob(os.path.join(input_folder, '*.txt'))
         if txt_present:
-            print("That file is already in text format")
-        else:
-            print("No JPG/JPEG files found in input folder")
-        return
-    
+            return "That file is already in text format"
+        return "No JPG/JPEG files found in input folder"
+
     print(f"Found {len(jpg_files)} JPG/JPEG files to convert")
-    
+
+    converted = []
+    errors = []
+
     for jpg_file in jpg_files:
         try:
             # Get filename without extension
@@ -78,10 +83,20 @@ def convert_jpg_to_ocr():
                     f.write(text)
                 
                 print(f"Converted: {os.path.basename(jpg_file)} -> {filename}.txt")
-                
+                converted.append(f"{filename}.txt")
+
         except Exception as e:
             print(f"Error converting {jpg_file}: {str(e)}")
+            errors.append(f"{os.path.basename(jpg_file)}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
 
 
 if __name__ == "__main__":
-    convert_jpg_to_ocr()
+    print(convert_jpg_to_ocr())

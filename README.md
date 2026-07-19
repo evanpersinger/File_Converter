@@ -774,3 +774,10 @@ This means you can update your source file and convert it again to get an update
 | R Markdown (.Rmd) | PDF | `Rmd_pdf.py` |
 | Multiple files (images/PDFs/text) | Single file | `combine_files.py` |
 | PDF (AI-powered) | Markdown (.md) | `openai_pdf_md.py` |
+
+## Flows That Don't Work
+
+Conversion chains that run without erroring but produce bad output. These are not recommended. More will be added here as they turn up.
+
+- **JPG → PDF → Markdown**: `jpg_pdf.py` embeds the image at 100 DPI with no text layer, so `pdf_md.py` treats the page as scanned and OCRs it by re-rendering that low-resolution image at 300 DPI. Accuracy is much worse than reading the JPG directly.
+- **Many images → one combined image → PDF → Markdown**: `combine_files.py` stacks images into one very tall image, so the PDF is a single enormous page and `openai_pdf_md.py` has to send it to the Vision API as one image. Very slow, and it can fail outright.

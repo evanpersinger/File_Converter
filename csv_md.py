@@ -43,8 +43,12 @@ def csv_to_markdown(csv_file):
 
 # convert all csv files to markdown files
 # handles file system operations
-def convert_csv_to_markdown():
-    """Convert all CSV files in input folder to Markdown files in output folder"""
+def convert_csv_to_markdown() -> str:
+    """Convert all CSV files in the input folder to Markdown tables in the output folder.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
 
     os.makedirs(output_folder, exist_ok=True)
 
@@ -53,12 +57,13 @@ def convert_csv_to_markdown():
     if not csv_files:
         md_present = glob.glob(os.path.join(input_folder, '*.md'))
         if md_present:
-            print("File is already in markdown format")
-        else:
-            print("No CSV files found in input folder")
-        return
+            return "File is already in markdown format"
+        return "No CSV files found in input folder"
 
     print(f"Found {len(csv_files)} CSV file(s) to convert")
+
+    converted = []
+    errors = []
 
     # loop through all csv files
     for csv_file in csv_files:
@@ -72,10 +77,20 @@ def convert_csv_to_markdown():
                 f.write(markdown_content)
 
             print(f"Converted: {os.path.basename(csv_file)} -> {filename}.md")
+            converted.append(f"{filename}.md")
 
         except Exception as e:
             print(f"Error converting {os.path.basename(csv_file)}: {str(e)}")
+            errors.append(f"{os.path.basename(csv_file)}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
 
 
 if __name__ == "__main__":
-    convert_csv_to_markdown()
+    print(convert_csv_to_markdown())

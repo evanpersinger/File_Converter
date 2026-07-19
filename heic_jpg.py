@@ -20,8 +20,12 @@ input_folder = os.path.join(script_dir, 'input')
 output_folder = os.path.join(script_dir, 'output')
 
 
-def convert_heic_to_jpg():
-    """Convert all HEIC files in input folder to JPG files in output folder"""
+def convert_heic_to_jpg() -> str:
+    """Convert all HEIC files in the input folder to JPG files in the output folder.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
 
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
@@ -36,13 +40,13 @@ def convert_heic_to_jpg():
         jpg_present = glob.glob(os.path.join(input_folder, '*.jpg')) + \
                       glob.glob(os.path.join(input_folder, '*.jpeg'))
         if jpg_present:
-            print("That file is already in jpg format")
-        else:
-            print("No HEIC files found in input folder")
-        return
+            return "That file is already in jpg format"
+        return "No HEIC files found in input folder"
 
     print(f"Found {len(heic_files)} HEIC files to convert")
 
+    converted = []
+    errors = []
 
     for heic_file in heic_files:
         try:
@@ -54,10 +58,20 @@ def convert_heic_to_jpg():
                     img = img.convert('RGB')
                 img.save(jpg_file, 'JPEG', quality=95)
                 print(f"Converted: {os.path.basename(heic_file)} -> {filename}.jpg")
+                converted.append(f"{filename}.jpg")
 
         except Exception as e:
             print(f"Error converting {heic_file}: {str(e)}")
+            errors.append(f"{os.path.basename(heic_file)}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
 
 
 if __name__ == "__main__":
-    convert_heic_to_jpg()
+    print(convert_heic_to_jpg())

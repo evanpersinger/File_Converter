@@ -96,39 +96,46 @@ def clean_text(text):
     return text.strip()
 
 
-def convert_jpg_to_markdown():
-    """Convert all JPG files in input folder to Markdown files in output folder"""
-    
+def convert_jpg_to_markdown() -> str:
+    """Convert all JPG files in the input folder to Markdown files in the output folder.
+
+    Uses OCR, so this reads text straight out of the image.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
+
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    
+
     # Find all JPG files
     jpg_files = glob.glob(os.path.join(input_folder, '*.jpg')) + \
                 glob.glob(os.path.join(input_folder, '*.jpeg'))
-    
+
     if not jpg_files:
         # If there are only markdown files present, notify the user
         md_present = glob.glob(os.path.join(input_folder, '*.md'))
         if md_present:
-            print("That file is already in markdown format")
-        else:
-            print("No JPG files found in input folder")
-        return
-    
+            return "That file is already in markdown format"
+        return "No JPG files found in input folder"
+
     print(f"Found {len(jpg_files)} JPG files to convert")
-    
+
+    converted = []
+    errors = []
+
     for jpg_file in jpg_files:
         try:
             # Get filename without extension
             filename = os.path.splitext(os.path.basename(jpg_file))[0]
             md_file = os.path.join(output_folder, f"{filename}.md")
-            
+
             # Open and process image
             with Image.open(jpg_file) as img:
                 # Preprocess image for better OCR
                 processed_image = preprocess_image(img)
-                
+
                 # OCR with better configuration for accuracy
                 custom_config = r'--oem 3 --psm 6'
                 text = pytesseract.image_to_string(
@@ -136,19 +143,29 @@ def convert_jpg_to_markdown():
                     config=custom_config,
                     lang='eng'
                 )
-                
+
                 # Clean and format text as markdown
                 text = clean_text(text)
-                
+
                 # Write to markdown file
                 with open(md_file, 'w', encoding='utf-8') as f:
                     f.write(text)
-                
+
                 print(f"Converted: {os.path.basename(jpg_file)} -> {filename}.md")
-                
+                converted.append(f"{filename}.md")
+
         except Exception as e:
             print(f"Error converting {jpg_file}: {str(e)}")
+            errors.append(f"{os.path.basename(jpg_file)}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
 
 
 if __name__ == "__main__":
-    convert_jpg_to_markdown()
+    print(convert_jpg_to_markdown())

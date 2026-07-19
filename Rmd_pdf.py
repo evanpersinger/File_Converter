@@ -32,16 +32,32 @@ def replace_sys_date(content):
     return content
 
 # convert an R markdown file to a pdf file
-# returns True if successful, False otherwise
-def convert_rmd_to_pdf(rmd_path, output_path=None, input_dir=None, output_dir=None):
-    # Set default directories if not provided
+def convert_rmd_to_pdf(rmd_path: str, output_path: str | None = None,
+                       input_dir: str | None = None, output_dir: str | None = None) -> bool:
+    """Convert an R Markdown file to PDF.
+
+    Prefers R's rmarkdown (which executes R code chunks) and falls back to pandoc.
+
+    Args:
+        rmd_path: Path to the .Rmd file (relative to input folder or absolute)
+        output_path: Desired output PDF filename. If None, uses input stem + .pdf
+        input_dir: Input directory (default: the script's input/ folder)
+        output_dir: Output directory (default: the script's output/ folder)
+
+    Returns:
+        bool: True if conversion successful, False otherwise
+    """
+    # Set default directories if not provided. Default relative to this script, not
+    # the caller's working directory, so it works no matter where it's invoked from.
+    script_dir = Path(__file__).resolve().parent
+
     if input_dir is None:
-        input_dir = Path("input")
+        input_dir = script_dir / "input"
     else:
         input_dir = Path(input_dir)
-    
+
     if output_dir is None:
-        output_dir = Path("output")
+        output_dir = script_dir / "output"
     else:
         output_dir = Path(output_dir)
     

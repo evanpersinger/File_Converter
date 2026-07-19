@@ -9,26 +9,31 @@ import sys
 from pathlib import Path
 
 
-def convert_r_to_rmd(r_path, output_path=None, input_dir=None, output_dir=None):
-    """    
+def convert_r_to_rmd(r_path: str, output_path: str | None = None,
+                     input_dir: str | None = None, output_dir: str | None = None) -> bool:
+    """Convert an R script to an R Markdown document.
+
     Args:
-        r_path (str | Path): Path to the .R file (relative to input folder or absolute)
-        output_path (str | Path | None): Desired output Rmd filename. If None, uses input stem + .Rmd
-        input_dir (str | Path | None): Input directory (default: input)
-        output_dir (str | Path | None): Output directory (default: output)
-    
+        r_path: Path to the .R file (relative to input folder or absolute)
+        output_path: Desired output Rmd filename. If None, uses input stem + .Rmd
+        input_dir: Input directory (default: the script's input/ folder)
+        output_dir: Output directory (default: the script's output/ folder)
+
     Returns:
         bool: True if conversion successful, False otherwise
     """
-    
-    # Set default directories if not provided
+
+    # Set default directories if not provided. Default relative to this script, not
+    # the caller's working directory, so it works no matter where it's invoked from.
+    script_dir = Path(__file__).resolve().parent
+
     if input_dir is None:
-        input_dir = Path("input")
+        input_dir = script_dir / "input"
     else:
         input_dir = Path(input_dir)
-    
+
     if output_dir is None:
-        output_dir = Path("output")
+        output_dir = script_dir / "output"
     else:
         output_dir = Path(output_dir)
     

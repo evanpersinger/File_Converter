@@ -43,45 +43,60 @@ def extract_text_from_pptx(pptx_file):
     return ''.join(markdown_content)
 
 
-def convert_pptx_to_markdown():
-    """Convert all PPTX files in input folder to Markdown files in output folder"""
-    
+def convert_pptx_to_markdown() -> str:
+    """Convert all PPTX files in the input folder to Markdown files in the output folder.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
+
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    
+
     # Find all PPTX files
     pptx_files = glob.glob(os.path.join(input_folder, '*.pptx'))
-    
+
     if not pptx_files:
         # If there are only markdown files present, notify the user
         md_present = glob.glob(os.path.join(input_folder, '*.md'))
         if md_present:
-            print("That file is already in markdown format")
-        else:
-            print("No PPTX files found in input folder")
-        return
-    
+            return "That file is already in markdown format"
+        return "No PPTX files found in input folder"
+
     print(f"Found {len(pptx_files)} PPTX files to convert")
-    
+
+    converted = []
+    errors = []
+
     for pptx_file in pptx_files:
         try:
             # Get filename without extension
             filename = os.path.splitext(os.path.basename(pptx_file))[0]
             md_file = os.path.join(output_folder, f"{filename}.md")
-            
+
             # Extract text and format as markdown
             markdown_content = extract_text_from_pptx(pptx_file)
-            
+
             # Write to markdown file
             with open(md_file, 'w', encoding='utf-8') as f:
                 f.write(markdown_content)
-            
+
             print(f"Converted: {os.path.basename(pptx_file)} -> {filename}.md")
-            
+            converted.append(f"{filename}.md")
+
         except Exception as e:
             print(f"Error converting {pptx_file}: {str(e)}")
+            errors.append(f"{os.path.basename(pptx_file)}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
 
 
 if __name__ == "__main__":
-    convert_pptx_to_markdown()
+    print(convert_pptx_to_markdown())

@@ -629,12 +629,15 @@ def run_pandoc(rich_md, safe_md, output_path):
 
 
 # Orchestration
-def convert_md_to_pdf(md_path, output_path=None):
+def convert_md_to_pdf(md_path: str, output_path: str | None = None) -> bool:
     """Convert one markdown file to a PDF in output/.
 
     Args:
         md_path: path to the .md file (relative to input/ or absolute).
         output_path: desired output filename; defaults to the input stem + .pdf.
+
+    Returns:
+        True if the conversion succeeded, False otherwise.
     """
     # If the provided path already points to a PDF, bail out early
     try:

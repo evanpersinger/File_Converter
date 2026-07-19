@@ -671,33 +671,34 @@ def find_images(input_folder):
                   if Path(f).suffix.lower() in IMAGE_EXTENSIONS)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Convert screenshots/images to text using OCR.")
-    parser.add_argument(
-        "--structured", "--tables", dest="structured", action="store_true",
-        help="Use table/structure-aware extraction (default: plain text).",
-    )
-    args = parser.parse_args()
+def convert_screenshots_to_text(structured: bool = False) -> str:
+    """Convert every screenshot/image in the input folder to text using OCR.
 
+    All extracted text is combined into a single .txt file in the output folder.
+
+    Args:
+        structured: If True, use table/layout-aware extraction (slower, better for
+            tables and complex layouts). If False, use plain-text extraction.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_folder = os.path.join(script_dir, "input")
     output_folder = os.path.join(script_dir, "output")
 
     if not os.path.exists(input_folder):
-        print(f"Error: '{input_folder}' folder not found")
-        sys.exit(1)
+        return f"Error: '{input_folder}' folder not found"
     os.makedirs(output_folder, exist_ok=True)
 
     image_files = find_images(input_folder)
     if not image_files:
         if any(f.lower().endswith('.txt') for f in os.listdir(input_folder)):
-            print("That file is already in txt format")
-        else:
-            print(f"No image files found in '{input_folder}' folder")
-            print("Supported formats: PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP")
-        sys.exit(1)
+            return "That file is already in txt format"
+        return (f"No image files found in '{input_folder}' folder. "
+                "Supported formats: PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP")
 
-    if args.structured:
+    if structured:
         mode, convert = "structured", convert_structured
         combined_filename = "all_extracted_structured_text.txt"
     else:
@@ -711,6 +712,7 @@ def main():
     print("\nProcessing...")
 
     all_text_parts = []
+    failed = []
     for image_filename in image_files:
         image_path = os.path.join(input_folder, image_filename)
         print(f"\nConverting: {image_filename}")
@@ -720,13 +722,37 @@ def main():
             print("Success")
         else:
             print(f"Failed: {image_filename}")
+            failed.append(image_filename)
 
-    if all_text_parts:
-        with open(combined_path, 'w', encoding='utf-8') as f:
-            f.write('\n\n'.join(all_text_parts))
-        print(f"\nAll text saved to: {combined_filename}")
-    else:
+    if not all_text_parts:
         print("\nNo text extracted from any images")
+        return f"No text extracted from any of the {len(image_files)} image(s)"
+
+    with open(combined_path, 'w', encoding='utf-8') as f:
+        f.write('\n\n'.join(all_text_parts))
+    print(f"\nAll text saved to: {combined_filename}")
+
+    summary = (f"Extracted text from {len(all_text_parts)} image(s) ({mode} mode) "
+               f"into output/{combined_filename}")
+    if failed:
+        summary += f". {len(failed)} failed: {', '.join(failed)}"
+    return summary
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert screenshots/images to text using OCR.")
+    parser.add_argument(
+        "--structured", "--tables", dest="structured", action="store_true",
+        help="Use table/structure-aware extraction (default: plain text).",
+    )
+    args = parser.parse_args()
+
+    result = convert_screenshots_to_text(structured=args.structured)
+    print(f"\n{result}")
+
+    # Non-zero exit when nothing came out, so shell callers can tell
+    if result.startswith(("Error:", "No ")):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

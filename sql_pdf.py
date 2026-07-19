@@ -134,43 +134,53 @@ def create_pdf_from_sql(sql_file_path, output_path):
         return False
 
 
-def convert_sql_files():
-    """Convert all SQL files in input directory to PDF."""
+def convert_sql_files() -> str:
+    """Convert all SQL files in the input directory to PDF, with syntax highlighting.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
     input_dir, output_dir = setup_directories()
-    
+
     # Find SQL files
     sql_files = list(input_dir.glob("*.sql"))
-    
+
     if not sql_files:
-        print("No SQL files found in the input/ directory.")
-        print("Please place your .sql files in the input/ folder and try again.")
-        return
-    
+        return "No SQL files found in the input/ directory. Please place your .sql files in the input/ folder and try again."
+
     print(f"Found {len(sql_files)} SQL file(s) to convert:")
     for sql_file in sql_files:
         print(f"  - {sql_file.name}")
-    
-    successful_conversions = 0
-    failed_conversions = 0
-    
+
+    converted = []
+    errors = []
+
     for sql_file in sql_files:
         output_file = output_dir / f"{sql_file.stem}.pdf"
-        
+
         print(f"\nConverting {sql_file.name}...")
-        
+
         if create_pdf_from_sql(sql_file, output_file):
             print(f"✓ Successfully converted to {output_file.name}")
-            successful_conversions += 1
+            converted.append(output_file.name)
         else:
             print(f"✗ Failed to convert {sql_file.name}")
-            failed_conversions += 1
-    
+            errors.append(sql_file.name)
+
     # Summary
     print(f"\n{'='*50}")
     print(f"Conversion Summary:")
-    print(f"  Successful: {successful_conversions}")
-    print(f"  Failed: {failed_conversions}")
+    print(f"  Successful: {len(converted)}")
+    print(f"  Failed: {len(errors)}")
     print(f"  Total: {len(sql_files)}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {', '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {', '.join(errors)}"
+    return summary
 
 
 def main():
@@ -211,7 +221,7 @@ def main():
             print(f"✗ Failed to convert {sql_file_path.name}")
     else:
         # Convert all SQL files in input directory
-        convert_sql_files()
+        print(convert_sql_files())
 
 
 if __name__ == "__main__":

@@ -267,7 +267,16 @@ def pdf_to_markdown(pdf_path):
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
-def main():
+def convert_pdf_to_markdown() -> str:
+    """Convert every PDF in the input folder to Markdown in the output folder.
+
+    Searchable pages become real Markdown; scanned pages fall back to OCR, handled
+    page by page so mixed PDFs work. This runs locally and is free, unlike the
+    OpenAI Vision version in openai_pdf_md.py.
+
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
     os.makedirs(output_folder, exist_ok=True)
 
     entries = os.listdir(input_folder) if os.path.isdir(input_folder) else []
@@ -277,12 +286,13 @@ def main():
 
     if not pdf_files:
         if any(f.lower().endswith(".md") for f in entries):
-            print("That file is already in md format")
-        else:
-            print("No PDF files found in input folder")
-        return
+            return "That file is already in md format"
+        return "No PDF files found in input folder"
 
     print(f"Found {len(pdf_files)} PDF file(s)")
+
+    converted = []
+    errors = []
 
     for filename in pdf_files:
         pdf_path = os.path.join(input_folder, filename)
@@ -294,8 +304,22 @@ def main():
             with open(md_path, "w", encoding="utf-8") as f:
                 f.write(markdown)
             print(f"  Converted {filename} -> {md_filename}")
+            converted.append(md_filename)
         except Exception as e:
             print(f"  Error converting {filename}: {e}")
+            errors.append(f"{filename}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
+
+
+def main():
+    print(convert_pdf_to_markdown())
 
 
 if __name__ == "__main__":

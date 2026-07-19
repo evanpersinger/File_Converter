@@ -14,35 +14,58 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 input_folder = os.path.join(script_dir, 'input')
 output_folder = os.path.join(script_dir, 'output')
 
-# Create output folder if it doesn't exist
-os.makedirs(output_folder, exist_ok=True)
 
-# Find all .xlsx files in the folder
-excel_files = glob.glob(os.path.join(input_folder, '*.xlsx'))
+def convert_xlsx_to_csv() -> str:
+    """Convert all XLSX files in the input folder to CSV files in the output folder.
 
-if not excel_files:
-    # If only CSVs are present, notify they're already CSV
-    csv_present = glob.glob(os.path.join(input_folder, '*.csv'))
-    if csv_present:
-        print("That file is already in csv format")
-    else:
-        print("No Excel files found in input folder")
-else:
+    Returns:
+        A summary of what was converted, suitable for showing to a caller.
+    """
+    # Create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Find all .xlsx files in the folder
+    excel_files = glob.glob(os.path.join(input_folder, '*.xlsx'))
+
+    if not excel_files:
+        # If only CSVs are present, notify they're already CSV
+        csv_present = glob.glob(os.path.join(input_folder, '*.csv'))
+        if csv_present:
+            return "That file is already in csv format"
+        return "No Excel files found in input folder"
+
     print(f"Found {len(excel_files)} Excel file(s)")
-    
+
+    converted = []
+    errors = []
+
     for file in excel_files:
+        # Get just the filename (outside the try so it's always available for errors)
+        filename = os.path.basename(file)
+
         try:
-            # Get just the filename
-            filename = os.path.basename(file)
-            
             # Create output CSV filename
             csv_filename = os.path.splitext(filename)[0] + '.csv'
             csv_path = os.path.join(output_folder, csv_filename)
-            
+
             # Read excel file and convert to CSV
             df = pd.read_excel(file)
             df.to_csv(csv_path, index=False)
             print(f"Converted {filename} to {csv_filename}")
-            
+            converted.append(csv_filename)
+
         except Exception as e:
             print(f"Error converting {filename}: {e}")
+            errors.append(f"{filename}: {e}")
+
+    if not converted:
+        return f"No files converted. {len(errors)} failed: {'; '.join(errors)}"
+
+    summary = f"Converted {len(converted)} file(s) to output/: {', '.join(converted)}"
+    if errors:
+        summary += f". {len(errors)} failed: {'; '.join(errors)}"
+    return summary
+
+
+if __name__ == "__main__":
+    print(convert_xlsx_to_csv())
