@@ -7,34 +7,21 @@ an AI agent for interactive file conversion.
 
 ### Web UI
 
-Upload a file in the browser, pick a target format, download the result. The dropdown
-only offers conversions that actually work for that file type on this machine.
-
-Two terminals:
+Upload a file, pick a target format, download the result. Two terminals, both run from
+the project root:
 
 ```bash
-# Terminal 1: the backend
-uv run uvicorn server:app --app-dir backend --reload --port 8000 --loop asyncio
-
-# Terminal 2: the frontend
+# Terminal 1: frontend
 cd frontend && npm install && npm run dev
+
+# Terminal 2: backend
+uv run uvicorn server:app --app-dir backend --reload --port 8000 --loop asyncio
 ```
 
-Then open the URL Vite prints (usually http://localhost:5173).
+Open **http://localhost:5173**. Both have to be running.
 
-**`--loop asyncio` is not optional.** `vision_parse` (used by the OpenAI PDF converter)
-calls `nest_asyncio.apply()`, which cannot patch uvloop, the loop `uvicorn[standard]`
-picks by default. Without the flag the AI conversion fails; everything else works either
-way.
-
-**How it avoids converting your other files:** the batch converters process *everything*
-in `backend/input/`. So the server gives each request a scratch workspace under
-`.webui_jobs/<uuid>/` and temporarily points the converter modules at it, restoring them
-afterwards. Your real `backend/input/` and `backend/output/` are never read, written,
-moved, or renamed by the web UI.
-
-Adding a new conversion to the UI is a backend-only change: one row in the `REGISTRY`
-list in `backend/server.py`. The frontend hardcodes no formats.
+`--app-dir backend` and `--loop asyncio` are both required, the backend won't start
+without them.
 
 ### AI Agent (Interactive Conversion)
 Use the AI agent to convert files through natural language:
@@ -816,6 +803,16 @@ uv sync --upgrade
 - Second conversion: `mock2.md` → `output/mock2.pdf` (overwrites the existing PDF)
 
 This means you can update your source file and convert it again to get an updated PDF without needing to delete the old one first.
+
+## How the Web UI Works
+
+To add a conversion to the UI, add one row to the `REGISTRY` list in
+`backend/server.py`. The frontend hardcodes no formats, it asks `/api/formats`.
+
+Each request runs in a scratch workspace under `.webui_jobs/<uuid>/`, so the web UI
+never touches your real `backend/input/` and `backend/output/`. Options whose system
+dependency is missing (Tesseract, Pandoc, LaTeX, LibreOffice, `OPENAI_API_KEY`) are
+greyed out with the reason instead of being offered and failing.
 
 ## Supported Conversions
 

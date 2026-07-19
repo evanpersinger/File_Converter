@@ -6,8 +6,12 @@ import './App.css'
 type Status =
   | { kind: 'idle' }
   | { kind: 'converting' }
-  | { kind: 'done'; filename: string }
   | { kind: 'error'; message: string }
+
+interface Result {
+  url: string
+  filename: string
+}
 
 export default function App() {
   const [formats, setFormats] = useState<FormatMap | null>(null)
@@ -15,10 +19,18 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null)
   const [target, setTarget] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const [result, setResult] = useState<Result | null>(null)
 
   useEffect(() => {
     getFormats().then(setFormats).catch((e: Error) => setLoadError(e.message))
   }, [])
+
+  // Release the blob URL when it gets replaced or the page unmounts. Without this,
+  // every conversion would leak its result until a full page reload.
+  useEffect(() => {
+    if (!result) return
+    return () => URL.revokeObjectURL(result.url)
+  }, [result])
 
   const ext = file ? extensionOf(file.name) : ''
   const targets = (ext && formats?.byExtension[ext]) || []
@@ -28,21 +40,19 @@ export default function App() {
     setFile(picked)
     setTarget(null)
     setStatus({ kind: 'idle' })
+    setResult(null)
   }
 
   async function runConversion() {
     if (!file || !target) return
     setStatus({ kind: 'converting' })
+    setResult(null)
     try {
       const { blob, filename } = await convert(file, target)
-      // Hand the bytes straight to the browser as a download.
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      link.click()
-      URL.revokeObjectURL(url)
-      setStatus({ kind: 'done', filename })
+      // Hold the result and let the user click Download, rather than firing the
+      // download automatically.
+      setResult({ url: URL.createObjectURL(blob), filename })
+      setStatus({ kind: 'idle' })
     } catch (e) {
       setStatus({ kind: 'error', message: (e as Error).message })
     }
@@ -54,7 +64,7 @@ export default function App() {
 
       {loadError && <p className="error">{loadError}</p>}
 
-      <label className="dropzone">
+      <label className="filepicker">
         <input type="file" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
         <span>{file ? file.name : 'Choose a file'}</span>
       </label>
@@ -107,7 +117,12 @@ export default function App() {
         </section>
       )}
 
-      {status.kind === 'done' && <p className="success">Downloaded {status.filename}</p>}
+      {result && (
+        <a className="download" href={result.url} download={result.filename}>
+          Download {result.filename}
+        </a>
+      )}
+
       {status.kind === 'error' && <pre className="error">{status.message}</pre>}
     </main>
   )

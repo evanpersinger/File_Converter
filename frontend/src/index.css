@@ -58,7 +58,7 @@ button {
   font-weight: 500;
   padding: 0.7rem 1rem;
   border-radius: 6px;
-  border: 1px solid var(--text);
+  border: 3px solid var(--text);
   background: transparent;
   color: var(--text);
   cursor: pointer;

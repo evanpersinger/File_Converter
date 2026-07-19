@@ -19,25 +19,30 @@ h2 {
   margin: 2rem 0 0.75rem;
 }
 
-/* File picker. The real input is hidden, the label is the click target. */
-.dropzone {
+/* File picker. The real input is visually hidden, the label is the click target.
+   Styled as a button, not a drop area, because there is no drop handler, a big
+   dashed box would promise drag-and-drop that does not work. */
+.filepicker {
   display: block;
-  padding: 2rem 1rem;
-  border: 2px dashed #555;
-  border-radius: 8px;
+  padding: 1.5rem 1rem;
+  font-size: 1.15rem;
+  font-weight: 500;
+  border: 3px solid #666;
+  border-radius: 6px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.dropzone:hover {
+.filepicker:hover {
   border-color: var(--text);
+  background: #1f1f1f;
 }
 
 /* Visually hidden rather than display:none, so the input stays keyboard focusable
    and present in the accessibility tree. display:none would drop it from tab order
    entirely, making the picker mouse-only. */
-.dropzone input {
+.filepicker input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -45,8 +50,7 @@ h2 {
   pointer-events: none;
 }
 
-.dropzone:focus-within {
-  opacity: 1;
+.filepicker:focus-within {
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }
@@ -89,9 +93,23 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.success {
+/* Styled to match the Convert button, but filled, so it reads as the next action. */
+.download {
+  display: block;
   margin-top: 1.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 6px;
+  border: 3px solid var(--text);
+  background: var(--text);
+  color: var(--bg);
   font-weight: 500;
+  text-align: center;
+  text-decoration: none;
+}
+
+.download:hover {
+  background: #d4d4d4;
+  border-color: #d4d4d4;
 }
 
 /* Text stays white; the red border carries the "this failed" signal. */
