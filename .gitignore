@@ -20,6 +20,11 @@ Thumbs.db
 input/
 output/
 
+# web UI
+frontend/node_modules/
+frontend/dist/
+.webui_jobs/
+
 
 
 

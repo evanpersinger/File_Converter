@@ -17,13 +17,18 @@ from reportlab.lib import colors
 
 
 def setup_directories():
-    """Create input and output directories if they don't exist."""
-    input_dir = Path("input")
-    output_dir = Path("output")
-    
+    """Create input and output directories if they don't exist.
+
+    Resolved relative to this script, not the caller's working directory, so the
+    folders are always backend/input and backend/output no matter where you run from.
+    """
+    script_dir = Path(__file__).resolve().parent
+    input_dir = script_dir / "input"
+    output_dir = script_dir / "output"
+
     input_dir.mkdir(exist_ok=True)
     output_dir.mkdir(exist_ok=True)
-    
+
     return input_dir, output_dir
 
 

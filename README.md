@@ -1,8 +1,40 @@
 # File Converter
 
-Simple scripts to convert files between different formats. Includes an AI agent for interactive file conversion.
+Simple scripts to convert files between different formats. Includes a local web UI and
+an AI agent for interactive file conversion.
 
 ## Quick Start
+
+### Web UI
+
+Upload a file in the browser, pick a target format, download the result. The dropdown
+only offers conversions that actually work for that file type on this machine.
+
+Two terminals:
+
+```bash
+# Terminal 1: the backend
+uv run uvicorn server:app --app-dir backend --reload --port 8000 --loop asyncio
+
+# Terminal 2: the frontend
+cd frontend && npm install && npm run dev
+```
+
+Then open the URL Vite prints (usually http://localhost:5173).
+
+**`--loop asyncio` is not optional.** `vision_parse` (used by the OpenAI PDF converter)
+calls `nest_asyncio.apply()`, which cannot patch uvloop, the loop `uvicorn[standard]`
+picks by default. Without the flag the AI conversion fails; everything else works either
+way.
+
+**How it avoids converting your other files:** the batch converters process *everything*
+in `backend/input/`. So the server gives each request a scratch workspace under
+`.webui_jobs/<uuid>/` and temporarily points the converter modules at it, restoring them
+afterwards. Your real `backend/input/` and `backend/output/` are never read, written,
+moved, or renamed by the web UI.
+
+Adding a new conversion to the UI is a backend-only change: one row in the `REGISTRY`
+list in `backend/server.py`. The frontend hardcodes no formats.
 
 ### AI Agent (Interactive Conversion)
 Use the AI agent to convert files through natural language:
@@ -12,7 +44,7 @@ Use the AI agent to convert files through natural language:
 file-convert-agent
 
 # Or run the script directly:
-python agent.py
+python backend/agent.py
 ```
 
 Then ask it to convert files:
@@ -36,7 +68,7 @@ AI-powered file conversion agent that can convert files through natural language
 file-convert-agent
 
 # Or run directly:
-python agent.py
+python backend/agent.py
 ```
 
 **Python packages:**
@@ -53,7 +85,8 @@ python agent.py
 **Features:**
 - Interactive conversation interface
 - Natural language file conversion requests
-- Direct access to all conversion functions
+- Direct access to every conversion script in this repo
+- Can list the input/output folders and read files
 - Web search capability for additional information
 
 **Example interactions:**
@@ -61,12 +94,35 @@ python agent.py
 - "List all files in the input folder"
 - "What conversions are supported?"
 
+**Tools available to the agent:**
+
+File tools: `list_files` (list the input or output folder), `read_file`, web search.
+
+Batch converters take no arguments. Each converts every matching file in `input/` and
+returns a summary of what it did:
+
+`convert_csv_to_markdown`, `convert_csv_to_xlsx`, `convert_xlsx_to_csv`,
+`convert_pdf_to_markdown`, `convert_pdf_to_markdown_openai`, `convert_pptx_to_markdown`,
+`convert_pptx_to_pdf`, `convert_heic_to_jpg`, `convert_heic_to_markdown`,
+`convert_jpg_to_markdown`, `convert_jpg_to_pdf`, `convert_jpg_to_ocr`,
+`convert_png_to_pdf`, `convert_sql_files`, `convert_screenshots_to_text`
+
+Single-file converters take a filename from `input/` plus an optional output name:
+
+`convert_md_to_pdf`, `convert_docx_to_pdf`, `convert_txt_to_pdf`, `convert_html_to_pdf`,
+`convert_notebook_to_pdf`, `convert_r_to_rmd`, `convert_rmd_to_pdf`, `combine_files`
+
+**Note on script structure:** every conversion script keeps its logic in a named
+function behind an `if __name__ == "__main__":` guard, so importing a script never
+runs a conversion as a side effect. Keep that pattern when adding new converters,
+otherwise the agent can't import them safely.
+
 ### xlsx_csv.py
 Converts Excel (.xlsx) to CSV (.csv).
 
 **Usage:**
 ```bash
-python xlsx_csv.py
+python backend/xlsx_csv.py
 ```
 
 **Python packages:**
@@ -82,7 +138,7 @@ Converts CSV (.csv) to Excel (.xlsx).
 
 **Usage:**
 ```bash
-python csv_xlsx.py
+python backend/csv_xlsx.py
 ```
 
 **Python packages:**
@@ -99,7 +155,7 @@ Converts CSV (.csv) files to Markdown (.md) tables.
 
 **Usage:**
 ```bash
-python csv_md.py
+python backend/csv_md.py
 ```
 
 **Python packages:**
@@ -115,7 +171,7 @@ Converts PDF files to Markdown. Searchable pages become real Markdown (headings,
 
 **Usage:**
 ```bash
-python pdf_md.py
+python backend/pdf_md.py
 ```
 
 **Python packages:**
@@ -132,7 +188,7 @@ Converts PDF files to Markdown using OpenAI's Vision API for high-quality conver
 
 **Usage:**
 ```bash
-python openai_pdf_md.py
+python backend/openai_pdf_md.py
 ```
 
 **Python packages:**
@@ -156,8 +212,8 @@ Converts screenshots and images to text using OCR (Optical Character Recognition
 
 **Usage:**
 ```bash
-python ss_txt.py               # simple mode: plain-text screenshots
-python ss_txt.py --structured  # structured mode: tables / complex layout
+python backend/ss_txt.py               # simple mode: plain-text screenshots
+python backend/ss_txt.py --structured  # structured mode: tables / complex layout
 ```
 
 **Python packages:**
@@ -204,11 +260,11 @@ Converts Jupyter notebooks (.ipynb) to PDF files.
 **Usage:**
 ```bash
 # Option A: run with no args – auto-detect a single notebook in input/
-python ipynb_pdf.py
+python backend/ipynb_pdf.py
 
 # Option B: specify a file (filename only; script prepends input/)
-python ipynb_pdf.py notebook_name.ipynb
-python ipynb_pdf.py notebook_name.ipynb custom_output.pdf
+python backend/ipynb_pdf.py notebook_name.ipynb
+python backend/ipynb_pdf.py notebook_name.ipynb custom_output.pdf
 ```
 
 **Python packages:**
@@ -252,10 +308,10 @@ Converts Markdown (.md) files to PDF using Pandoc with enhanced math symbol and 
 **Usage:**
 ```bash
 # Convert all .md files in input/ folder
-python md_pdf.py
+python backend/md_pdf.py
 
 # Convert specific file
-python md_pdf.py file.md [output.pdf]
+python backend/md_pdf.py file.md [output.pdf]
 ```
 
 **Python packages:**
@@ -303,7 +359,7 @@ Converts HTML files to PDF. Prefers `wkhtmltopdf`; falls back to `pandoc` if una
 
 **Usage:**
 ```bash
-python html_pdf.py file.html [output.pdf]
+python backend/html_pdf.py file.html [output.pdf]
 ```
 
 **Python packages:**
@@ -318,7 +374,7 @@ Converts HEIC images (typically from iPhone/iPad) to JPG files.
 
 **Usage:**
 ```bash
-python heic_jpg.py
+python backend/heic_jpg.py
 ```
 
 **Python packages:**
@@ -335,7 +391,7 @@ Converts JPG/JPEG images to PDF files.
 
 **Usage:**
 ```bash
-python jpg_pdf.py
+python backend/jpg_pdf.py
 ```
 
 **Python packages:**
@@ -352,7 +408,7 @@ Converts PNG images to PDF files.
 
 **Usage:**
 ```bash
-python png_pdf.py
+python backend/png_pdf.py
 ```
 
 **Python packages:**
@@ -369,7 +425,7 @@ Converts PowerPoint (.pptx) files to PDF using LibreOffice.
 
 **Usage:**
 ```bash
-python pptx_pdf.py
+python backend/pptx_pdf.py
 ```
 
 **Python packages:**
@@ -393,7 +449,7 @@ Converts PowerPoint (.pptx) files to Markdown format.
 
 **Usage:**
 ```bash
-python pptx_md.py
+python backend/pptx_md.py
 ```
 
 **Python packages:**
@@ -416,7 +472,7 @@ Converts HEIC images (typically from iPhone/iPad) to Markdown using OCR.
 
 **Usage:**
 ```bash
-python heic_md.py
+python backend/heic_md.py
 ```
 
 **Python packages:**
@@ -444,7 +500,7 @@ Converts JPG/JPEG images to Markdown using OCR.
 
 **Usage:**
 ```bash
-python jpg_md.py
+python backend/jpg_md.py
 ```
 
 **Python packages:**
@@ -471,13 +527,13 @@ Converts Microsoft Word (.docx) files to PDF format with proper table rendering,
 **Usage:**
 ```bash
 # Option A: Convert all DOCX files in input/ directory
-python docx_pdf.py
+python backend/docx_pdf.py
 
 # Option B: Convert specific file
-python docx_pdf.py file.docx [output.pdf]
+python backend/docx_pdf.py file.docx [output.pdf]
 
 # Option C: Use custom input/output directories
-python docx_pdf.py --input-dir myinput --output-dir myoutput
+python backend/docx_pdf.py --input-dir myinput --output-dir myoutput
 ```
 
 **Python packages:**
@@ -508,10 +564,10 @@ Converts SQL files to PDF format with syntax highlighting and proper formatting.
 **Usage:**
 ```bash
 # Option A: Convert all SQL files in input/ directory
-python sql_pdf.py
+python backend/sql_pdf.py
 
 # Option B: Convert specific file
-python sql_pdf.py file.sql [output.pdf]
+python backend/sql_pdf.py file.sql [output.pdf]
 ```
 
 **Python packages:**
@@ -536,10 +592,10 @@ Converts text (.txt) files to PDF format with clean formatting.
 **Usage:**
 ```bash
 # Option A: Convert all TXT files in input/ directory
-python txt_pdf.py
+python backend/txt_pdf.py
 
 # Option B: Convert specific file
-python txt_pdf.py file.txt [output.pdf]
+python backend/txt_pdf.py file.txt [output.pdf]
 ```
 
 **Python packages:**
@@ -562,13 +618,13 @@ Converts R (.R) files to R Markdown (.Rmd) format.
 **Usage:**
 ```bash
 # Option A: Convert all R files in input/ directory
-python R_Rmd.py
+python backend/R_Rmd.py
 
 # Option B: Convert specific file
-python R_Rmd.py file.R [output.Rmd]
+python backend/R_Rmd.py file.R [output.Rmd]
 
 # Option C: Use custom input/output directories
-python R_Rmd.py --input-dir myinput --output-dir myoutput
+python backend/R_Rmd.py --input-dir myinput --output-dir myoutput
 ```
 
 **Python packages:**
@@ -594,7 +650,7 @@ Converts R Markdown (.Rmd) files to PDF. Prefers R's rmarkdown; falls back to pa
 
 **Usage:**
 ```bash
-python Rmd_pdf.py file.Rmd [output.pdf]
+python backend/Rmd_pdf.py file.Rmd [output.pdf]
 ```
 
 **Python packages:**
@@ -621,13 +677,13 @@ Combines multiple files into one output file. Automatically detects file types a
 **Usage:**
 ```bash
 # Combine all files in input/ folder (auto-detects format)
-python combine_files.py
+python backend/combine_files.py
 
 # Combine specific files
-python combine_files.py file1.jpg file2.jpg
+python backend/combine_files.py file1.jpg file2.jpg
 
 # Combine with custom output name
-python combine_files.py file1.pdf file2.pdf combined.pdf
+python backend/combine_files.py file1.pdf file2.pdf combined.pdf
 ```
 
 **Python packages:**
@@ -653,34 +709,47 @@ python combine_files.py file1.pdf file2.pdf combined.pdf
 ## Folder Structure
 ```
 converter/
-├── input/              # Put your source files here
-├── output/             # Converted files will appear here
-├── agent.py            # AI agent for interactive file conversion
-├── xlsx_csv.py         # Excel to CSV converter
-├── csv_xlsx.py         # CSV to Excel converter
-├── csv_md.py           # CSV to Markdown converter
-├── pdf_md.py           # PDF to Markdown converter (pymupdf4llm + OCR)
-├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
-├── ss_txt.py           # Screenshot to text converter (OCR; --structured for tables)
-├── ipynb_pdf.py        # Jupyter notebook to PDF converter
-├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
-├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
-├── heic_jpg.py         # HEIC to JPG converter
-├── heic_md.py          # HEIC to Markdown converter (OCR)
-├── jpg_pdf.py          # JPG/JPEG to PDF converter
-├── jpg_md.py           # JPG/JPEG to Markdown converter (OCR)
-├── png_pdf.py          # PNG to PDF converter
-├── combine_files.py    # File combiner (PDFs, images, text)
-├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
-├── pptx_md.py          # PowerPoint to Markdown converter
-├── docx_pdf.py         # Word to PDF converter
-├── R_Rmd.py            # R to R Markdown converter
-├── Rmd_pdf.py          # R Markdown to PDF converter
-├── sql_pdf.py          # SQL to PDF converter
-├── txt_pdf.py          # TXT to PDF converter
-├── pyproject.toml      # Python package dependencies
-└── .env                # Store your OpenAI API key here (optional)
+├── backend/                # All Python code
+│   ├── input/              # Put your source files here
+│   ├── output/             # Converted files will appear here
+│   ├── server.py           # FastAPI server behind the web UI
+│   ├── agent.py            # AI agent for interactive file conversion
+│   ├── xlsx_csv.py         # Excel to CSV converter
+│   ├── csv_xlsx.py         # CSV to Excel converter
+│   ├── csv_md.py           # CSV to Markdown converter
+│   ├── pdf_md.py           # PDF to Markdown converter (pymupdf4llm + OCR)
+│   ├── openai_pdf_md.py    # PDF to Markdown converter (AI-powered)
+│   ├── ss_txt.py           # Screenshot to text converter (OCR; --structured for tables)
+│   ├── ipynb_pdf.py        # Jupyter notebook to PDF converter
+│   ├── md_pdf.py           # Markdown to PDF converter (Pandoc, enhanced)
+│   ├── html_pdf.py         # HTML to PDF converter (wkhtmltopdf/Pandoc)
+│   ├── heic_jpg.py         # HEIC to JPG converter
+│   ├── heic_md.py          # HEIC to Markdown converter (OCR)
+│   ├── jpg_pdf.py          # JPG/JPEG to PDF converter
+│   ├── jpg_md.py           # JPG/JPEG to Markdown converter (OCR)
+│   ├── jpg_ocr.py          # JPG/JPEG to plain text converter (OCR)
+│   ├── png_pdf.py          # PNG to PDF converter
+│   ├── combine_files.py    # File combiner (PDFs, images, text)
+│   ├── pptx_pdf.py         # PowerPoint to PDF converter (LibreOffice)
+│   ├── pptx_md.py          # PowerPoint to Markdown converter
+│   ├── docx_pdf.py         # Word to PDF converter
+│   ├── R_Rmd.py            # R to R Markdown converter
+│   ├── Rmd_pdf.py          # R Markdown to PDF converter
+│   ├── sql_pdf.py          # SQL to PDF converter
+│   └── txt_pdf.py          # TXT to PDF converter
+├── frontend/               # All TypeScript code (Vite + React)
+│   ├── index.html
+│   └── src/
+│       ├── App.tsx         # The entire UI
+│       ├── api.ts          # Backend calls
+│       └── types.ts        # Shared types
+├── pyproject.toml          # Python package dependencies
+└── .env                    # Store your OpenAI API key here (optional)
 ```
+
+**Note:** `input/` and `output/` live inside `backend/`, since that's where the
+converting happens. Every script resolves those folders relative to its own file, so
+they work the same no matter which directory you run from.
 
 ## Requirements
 
@@ -699,7 +768,7 @@ converter/
 
 2. **Create the required folders** (if they don't exist):
    ```bash
-   mkdir input output
+   mkdir -p backend/input backend/output
    ```
 
 3. **Install system dependencies** (as needed):
@@ -732,13 +801,13 @@ uv sync --upgrade
 
 ### Using the AI Agent (Recommended)
 1. Put your files in the `input` folder
-2. Run: `file-convert-agent` (or `python agent.py`)
+2. Run: `file-convert-agent` (or `python backend/agent.py`)
 3. Ask the agent to convert files using natural language
 4. Find converted files in the `output` folder
 
 ### Using Individual Scripts
 1. Put your files in the `input` folder
-2. Run the appropriate conversion script (e.g., `python md_pdf.py`)
+2. Run the appropriate conversion script (e.g., `python backend/md_pdf.py`)
 3. Find converted files in the `output` folder
 
 ### File Overwriting

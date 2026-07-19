@@ -305,9 +305,10 @@ def main():
     else:
         # Fallback to simple argument parsing
         if len(sys.argv) < 2:
-            # No args: convert all .R files in input/
-            input_dir = Path("input")
-            output_dir = Path("output")
+            # No args: convert all .R files in input/ (resolved relative to this script)
+            script_dir = Path(__file__).resolve().parent
+            input_dir = script_dir / "input"
+            output_dir = script_dir / "output"
             output_dir.mkdir(exist_ok=True)
             r_files = sorted(p for p in input_dir.glob("*.R"))
             if not r_files:

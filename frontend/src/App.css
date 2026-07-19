@@ -1,0 +1,108 @@
+main {
+  max-width: 34rem;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  text-align: left;
+}
+
+h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0 0 2.5rem;
+}
+
+h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 2rem 0 0.75rem;
+}
+
+/* File picker. The real input is hidden, the label is the click target. */
+.dropzone {
+  display: block;
+  padding: 2rem 1rem;
+  border: 2px dashed #555;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.dropzone:hover {
+  border-color: var(--text);
+}
+
+/* Visually hidden rather than display:none, so the input stays keyboard focusable
+   and present in the accessibility tree. display:none would drop it from tab order
+   entirely, making the picker mouse-only. */
+.dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dropzone:focus-within {
+  opacity: 1;
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  cursor: pointer;
+}
+
+.option.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.option code {
+  font-size: 0.85em;
+}
+
+.note {
+  display: block;
+  font-size: 0.8rem;
+  font-style: normal;
+  margin-top: 0.15rem;
+}
+
+button {
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.muted {
+  font-size: 0.9rem;
+}
+
+.success {
+  margin-top: 1.5rem;
+  font-weight: 500;
+}
+
+/* Text stays white; the red border carries the "this failed" signal. */
+.error {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #e05252;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  text-align: left;
+  font-family: var(--mono);
+}

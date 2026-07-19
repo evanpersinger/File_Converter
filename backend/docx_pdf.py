@@ -92,14 +92,17 @@ def para_to_html(para):
 # Convert a .docx file to PDF
 # returns True if successful, False otherwise
 def convert_docx_to_pdf(docx_path: str, output_path: str | None = None, input_dir: str | None = None, output_dir: str | None = None) -> bool:
-    # Set default directories if not provided
+    # Set default directories if not provided. Resolved relative to this script, not
+    # the caller's working directory, so they are always backend/input and backend/output.
+    script_dir = Path(__file__).resolve().parent
+
     if input_dir is None:
-        input_dir = Path("input")
+        input_dir = script_dir / "input"
     else:
         input_dir = Path(input_dir)
-    
+
     if output_dir is None:
-        output_dir = Path("output")
+        output_dir = script_dir / "output"
     else:
         output_dir = Path(output_dir)
 
